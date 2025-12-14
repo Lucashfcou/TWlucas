@@ -51,7 +51,14 @@ function handleSkipTurn() {
         return;
     }
 
-    // Sem movimentos válidos - permite pular
+    // CORREÇÃO PROBLEMA 3: Bloquear passar se dado é repetível (1, 4, 6) - deve relançar
+    const isRepeatable = gameState.diceValue === 1 || gameState.diceValue === 4 || gameState.diceValue === 6;
+    if (isRepeatable) {
+        updateMessageSafe(`⚠️ Dado ${gameState.diceValue} é repetível! Você deve relançar os dados, não pode passar a vez.`);
+        return;
+    }
+
+    // Sem movimentos válidos E não é repetível - permite pular
     if (window.clearSelection) {
         clearSelection();
     } else {

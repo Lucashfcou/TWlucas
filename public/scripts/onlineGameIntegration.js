@@ -54,11 +54,19 @@ window.onGameUpdate = function(serverGame) {
         const isMyTurn = serverGame.isMyTurn;
         const currentPlayerName = serverGame.currentPlayer === 'red' ? 'Vermelho' : 'Azul';
         
+        // CORREÇÃO PROBLEMA 3: Verificar se pode relançar (repetível + sem jogadas)
+        const isRepeatable = serverGame.diceValue === 1 || serverGame.diceValue === 4 || serverGame.diceValue === 6;
+        const canReroll = isRepeatable && serverGame.diceRolled && !serverGame.diceUsed && window.hasAnyValidMoves && !window.hasAnyValidMoves(serverGame.currentPlayer, serverGame.diceValue);
+        
         if (isMyTurn) {
             if (!serverGame.diceRolled) {
                 updateMessage(`Sua vez! (${currentPlayerName}) - Lance os dados!`);
             } else if (!serverGame.diceUsed) {
-                updateMessage(`Sua vez! Valor do dado: ${serverGame.diceValue}. Escolha uma peça para mover.`);
+                if (canReroll) {
+                    updateMessage(`Paus: ${serverGame.diceValue}. Sem jogadas possíveis, relance os dados!`);
+                } else {
+                    updateMessage(`Sua vez! Valor do dado: ${serverGame.diceValue}. Escolha uma peça para mover.`);
+                }
             }
         } else {
             updateMessage(`Turno de ${serverGame.opponent} (${currentPlayerName})... Aguarde.`);
@@ -66,8 +74,19 @@ window.onGameUpdate = function(serverGame) {
         
         // Habilitar/desabilitar controles baseado no turno
         const rollButton = document.getElementById('roll-dice');
+        const passButton = document.getElementById('skip-button');
         if (rollButton) {
-            rollButton.disabled = !isMyTurn || serverGame.diceRolled;
+            // Permitir rolar se: é minha vez E (não rolou OU pode relançar)
+            rollButton.disabled = !isMyTurn || (serverGame.diceRolled && !canReroll);
+            if (canReroll) {
+                rollButton.textContent = "Relançar Paus";
+            } else {
+                rollButton.textContent = "Jogar Paus";
+            }
+        }
+        if (passButton && isMyTurn) {
+            // Bloquear passar se pode relançar
+            passButton.disabled = canReroll;
         }
     }
 };
@@ -234,10 +253,8 @@ window.startOnlineGame = function(gameId, playerColor, opponent) {
                 return;
             }
             
-            if (window.gameState.diceRolled && !window.gameState.diceUsed) {
-                updateMessage('Você já lançou os dados! Escolha uma peça para mover.');
-                return;
-            }
+            // CORREÇÃO PROBLEMA 3: Remover bloqueio para permitir relançar quando apropriado
+            // O servidor validará se pode relançar (repetível + sem jogadas)
             
             const result = await window.loginManager.doRoll();
             
@@ -248,6 +265,7 @@ window.startOnlineGame = function(gameId, playerColor, opponent) {
                 window.gameState.diceValue = result.value;
                 window.gameState.diceRolled = true;
                 window.gameState.diceUsed = false;
+                window.gameState.bonusRoll = result.bonusRoll;
                 
                 updateMessage(`Você lançou os dados! Resultado: ${result.value}. ${result.bonusRoll ? 'Você terá uma jogada extra!' : ''}`);
             } else {
@@ -269,6 +287,33 @@ window.startOnlineGame = function(gameId, playerColor, opponent) {
                 setTimeout(() => {
                     location.reload();
                 }, 2000);
+            }
+        });
+    }
+    
+    // Interceptar botão de passar vez para modo online
+    const skipButton = document.getElementById('skip-button');
+    if (skipButton) {
+        const newSkipButton = skipButton.cloneNode(true);
+        skipButton.parentNode.replaceChild(newSkipButton, skipButton);
+        
+        newSkipButton.addEventListener('click', async function() {
+            if (window.gameState.currentPlayer !== onlineGameState.myColor) {
+                updateMessage('Não é a sua vez!');
+                return;
+            }
+            
+            if (!window.gameState.diceRolled) {
+                updateMessage('Você precisa lançar os dados primeiro!');
+                return;
+            }
+            
+            const result = await window.loginManager.doPass();
+            
+            if (result.success) {
+                updateMessage('Você passou a vez.');
+            } else {
+                updateMessage(`Erro: ${result.error}`);
             }
         });
     }

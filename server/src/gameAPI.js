@@ -21,11 +21,12 @@ function joinGame(username) {
         // Criar novo jogo
         const game = dataManager.createGame(match.player1, match.player2);
         
+        // CORREÇÃO: Primeiro jogador (player1) é AZUL, segundo (player2) é VERMELHO
         return {
             success: true,
             gameId: game.id,
             opponent: match.player1 === username ? match.player2 : match.player1,
-            color: match.player1 === username ? 'red' : 'blue',
+            color: match.player1 === username ? 'blue' : 'red',
             status: 'matched'
         };
     } else {
@@ -51,14 +52,24 @@ function doRoll(gameId, username) {
     }
     
     // Verificar se é a vez do jogador
-    const playerColor = game.player1 === username ? 'red' : 'blue';
+    // CORREÇÃO: player1 é AZUL, player2 é VERMELHO
+    const playerColor = game.player1 === username ? 'blue' : 'red';
     if (game.currentPlayer !== playerColor) {
         return { success: false, error: 'Not your turn' };
     }
     
     // Verificar se já lançou os dados neste turno
     if (game.diceRolled && !game.diceUsed) {
-        return { success: false, error: 'Dice already rolled' };
+        // CORREÇÃO PROBLEMA 3: Permitir relançar se dado é repetível (1, 4, 6) E não há jogadas possíveis
+        const isRepeatable = game.diceValue === 1 || game.diceValue === 4 || game.diceValue === 6;
+        const possibleMoves = rules.getPossibleMoves(game);
+        const hasNoMoves = possibleMoves.length === 0;
+        
+        // Se dado é repetível E não há jogadas, permitir relançar
+        if (!isRepeatable || !hasNoMoves) {
+            return { success: false, error: 'Dice already rolled' };
+        }
+        // Se chegou aqui, é repetível e não há jogadas - permitir relançar
     }
     
     // Lançar dados
@@ -94,7 +105,8 @@ function doNotify(gameId, username, pieceIndex) {
     }
     
     // Verificar se é a vez do jogador
-    const playerColor = game.player1 === username ? 'red' : 'blue';
+    // CORREÇÃO: player1 é AZUL, player2 é VERMELHO
+    const playerColor = game.player1 === username ? 'blue' : 'red';
     if (game.currentPlayer !== playerColor) {
         return { success: false, error: 'Not your turn' };
     }
@@ -165,8 +177,9 @@ function doNotify(gameId, username, pieceIndex) {
         game.winner = victoryCheck.winner;
         
         // Atualizar estatísticas dos jogadores
-        const winner = game.winner === 'red' ? game.player1 : game.player2;
-        const loser = game.winner === 'red' ? game.player2 : game.player1;
+        // CORREÇÃO: player1 é AZUL, player2 é VERMELHO
+        const winner = game.winner === 'blue' ? game.player1 : game.player2;
+        const loser = game.winner === 'blue' ? game.player2 : game.player1;
         
         dataManager.updateUserStats(winner, true);
         dataManager.updateUserStats(loser, false);
@@ -210,7 +223,8 @@ function doPass(gameId, username) {
     }
     
     // Verificar se é a vez do jogador
-    const playerColor = game.player1 === username ? 'red' : 'blue';
+    // CORREÇÃO: player1 é AZUL, player2 é VERMELHO
+    const playerColor = game.player1 === username ? 'blue' : 'red';
     if (game.currentPlayer !== playerColor) {
         return { success: false, error: 'Not your turn' };
     }
@@ -220,6 +234,12 @@ function doPass(gameId, username) {
     
     if (possibleMoves.length > 0) {
         return { success: false, error: 'There are possible moves' };
+    }
+    
+    // CORREÇÃO PROBLEMA 3: Não pode passar se dado é repetível (1, 4, 6) - deve relançar
+    const isRepeatable = game.diceValue === 1 || game.diceValue === 4 || game.diceValue === 6;
+    if (isRepeatable && game.diceRolled) {
+        return { success: false, error: 'Must re-roll with repeatable dice (1, 4, 6) when no moves available' };
     }
     
     // Passar a vez
@@ -244,7 +264,8 @@ function updateGame(gameId, username) {
         return { success: false, error: 'Game not found' };
     }
     
-    const playerColor = game.player1 === username ? 'red' : 'blue';
+    // CORREÇÃO: player1 é AZUL, player2 é VERMELHO
+    const playerColor = game.player1 === username ? 'blue' : 'red';
     const isMyTurn = game.currentPlayer === playerColor;
     
     return {
@@ -279,14 +300,15 @@ function leaveGame(gameId, username) {
     
     if (game.status === 'active') {
         // Desistir do jogo - o outro jogador ganha
-        const playerColor = game.player1 === username ? 'red' : 'blue';
-        const winner = playerColor === 'red' ? 'blue' : 'red';
+        // CORREÇÃO: player1 é AZUL, player2 é VERMELHO
+        const playerColor = game.player1 === username ? 'blue' : 'red';
+        const winner = playerColor === 'blue' ? 'red' : 'blue';
         
         game.status = 'finished';
         game.winner = winner;
         
         // Atualizar estatísticas
-        const winnerUsername = winner === 'red' ? game.player1 : game.player2;
+        const winnerUsername = winner === 'blue' ? game.player1 : game.player2;
         dataManager.updateUserStats(winnerUsername, true);
         dataManager.updateUserStats(username, false);
         
