@@ -121,12 +121,17 @@ window.onGameUpdate = function(serverGame) {
     
     // Atualizar peças no tabuleiro baseado no estado do servidor
     if (window.gameState && serverGame) {
-        // Sincronizar estado do jogo
-        window.gameState.currentPlayer = serverGame.currentPlayer;
-        window.gameState.diceValue = serverGame.diceValue;
-        window.gameState.diceRolled = serverGame.diceRolled;
-        window.gameState.diceUsed = serverGame.diceUsed;
-        window.gameState.pieces = serverGame.pieces;
+        // CORREÇÃO: Sincronizar estado do jogo para o gameState correto
+        // (que pode ser window.gameState ou window.gameLogic.gameState)
+        const gameState = window.gameLogic && window.gameLogic.gameState 
+            ? window.gameLogic.gameState 
+            : window.gameState;
+        
+        gameState.currentPlayer = serverGame.currentPlayer;
+        gameState.diceValue = serverGame.diceValue;
+        gameState.diceRolled = serverGame.diceRolled;
+        gameState.diceUsed = serverGame.diceUsed;
+        gameState.pieces = serverGame.pieces;
         
         // Atualizar visualização do tabuleiro
         updateBoardFromServerState(serverGame);
@@ -416,16 +421,27 @@ async function handleOnlineMoveClick(cellIndex) {
 
 // Tornar minhas peças selecionáveis no modo online
 function makeOnlinePiecesSelectable() {
-    const gameState = window.gameLogic.gameState;
+    // CORREÇÃO: Usar o gameState correto (compartilhado com gameLogic)
+    const gameState = window.gameLogic && window.gameLogic.gameState 
+        ? window.gameLogic.gameState 
+        : window.gameState;
+    
     if (!gameState || gameState.diceValue === 0) return;
     
-    window.clearHighlights();
+    if (window.clearHighlights) {
+        window.clearHighlights();
+    }
     
-    gameState.pieces[onlineGameState.myColor].forEach(piece => {
-        const cellIndex = window.getCellIndex(piece.row, piece.col, gameState.boardSize);
-        const cells = document.querySelectorAll('.cell');
-        cells[cellIndex].classList.add('selectable');
-    });
+    // Verificar se existem peças para o jogador
+    if (gameState.pieces && gameState.pieces[onlineGameState.myColor]) {
+        gameState.pieces[onlineGameState.myColor].forEach(piece => {
+            const cellIndex = window.getCellIndex(piece.row, piece.col, gameState.boardSize);
+            const cells = document.querySelectorAll('.cell');
+            if (cells[cellIndex]) {
+                cells[cellIndex].classList.add('selectable');
+            }
+        });
+    }
 }
 
 // Iniciar jogo online
@@ -560,17 +576,34 @@ function createOnlineBoard(columns) {
         }
     }
     
-    // Inicializar gameState básico
-    if (!window.gameState) {
-        window.gameState = {};
+    // CORREÇÃO: Usar o gameState de gameLogic para compartilhar estado
+    // entre modo local e online
+    if (window.gameLogic && window.gameLogic.gameState) {
+        // Usa o gameState existente de gameLogicScript.js
+        const gameState = window.gameLogic.gameState;
+        gameState.boardSize = columns;
+        gameState.currentPlayer = 'red';
+        gameState.diceValue = 0;
+        gameState.diceRolled = false;
+        gameState.diceUsed = false;
+        gameState.pieces = { red: [], blue: [] };
+        gameState.gameActive = true;
+        
+        // Criar referência global para compatibilidade
+        window.gameState = gameState;
+    } else {
+        // Fallback se gameLogic não estiver carregado
+        if (!window.gameState) {
+            window.gameState = {};
+        }
+        
+        window.gameState.boardSize = columns;
+        window.gameState.currentPlayer = 'red';
+        window.gameState.diceValue = 0;
+        window.gameState.diceRolled = false;
+        window.gameState.diceUsed = false;
+        window.gameState.pieces = { red: [], blue: [] };
     }
-    
-    window.gameState.boardSize = columns;
-    window.gameState.currentPlayer = 'red';
-    window.gameState.diceValue = 0;
-    window.gameState.diceRolled = false;
-    window.gameState.diceUsed = false;
-    window.gameState.pieces = { red: [], blue: [] };
 }
 
 // Exibir resultado dos dados
