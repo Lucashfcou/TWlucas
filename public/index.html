@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <title>Tâb</title>
+    <link href="style.css" rel="stylesheet"/>
+
+    <!-- Login Manager (precisa carregar antes) -->
+    <script src="scripts/login.js" defer></script>
+
+    <!-- Integração de jogo online -->
+    <script src="scripts/onlineGameIntegration.js" defer></script>
+
+    <!-- Sistema de Rankings-->
+    <script src="scripts/rankingSystem.js" defer></script>
+
+    <!-- Painel de Conta do Usuário -->
+    <script src="scripts/account-panel.js" defer></script>
+
+    <!-- Lógica de alternância da barra lateral esquerda -->
+    <script src="scripts/togglesLeftBarScript.js" defer></script>
+
+    <!-- Lógica do jogo (deve carregar antes da IA) -->
+    <script src="scripts/gameLogicScript.js" defer></script>
+    <script src="scripts/rollScript.js" defer></script>
+    <script src="scripts/skipButtonScript.js" defer></script>
+    <script src="scripts/forfeitButtonScript.js" defer></script>
+
+    <!-- Inteligência artificial (carregada após a lógica do jogo) -->
+    <script src="scripts/aiPlayerScript.js" defer></script>
+    <script src="scripts/aiIntegrationScript.js" defer></script>
+
+    <!-- Script de inicialização(executado por último) -->
+    <script src="scripts/startingGameScript.js" defer></script>
+
+</head>
+<body>
+
+<header id="site-header">
+    <nav class="navbar">
+        <h1 class="header-title" id="header-title">Tâb</h1>
+
+        <div class="header-actions" role="group" aria-label="Conta">
+            <h4>Conta</h4>
+
+            <!-- Botão de acesso ao painel de conta -->
+            <button id="account-btn"
+                    class="icon-btn"
+                    aria-haspopup="true"
+                    aria-controls="account-panel"
+                    aria-expanded="false"
+                    title="Entrar / Criar conta">
+                <img src="media/loginIcon.png" alt="Ícone de conta"/>
+            </button>
+
+            <!-- Painel de autenticação (login/estatísticas) -->
+            <div id="account-panel" class="account-panel" role="dialog" aria-modal="false" aria-labelledby="account-panel-title" hidden>
+                <div class="panel-inner" role="document">
+                    <!-- Conteúdo será gerado dinamicamente pelo JavaScript -->
+                </div>
+            </div>
+        </div>
+    </nav>
+</header>
+
+<div class="container" id="main-content">
+
+    <!-- Barra lateral esquerda (Regras e Classificação) -->
+    <aside class="sidebar collapsed" id="left-bar" tabindex="0" aria-labelledby="rules-title" aria-hidden="true">
+
+        <!-- Modo minimizado da barra lateral -->
+        <div class="rules-minimized" aria-hidden="false">
+            <h2>Menu</h2>
+            <ul class="rules-list">
+                <li>
+                    <button class="left-bar-toggles" id="rules-toggle" aria-controls="left-bar" aria-expanded="false" title="Abrir regras">
+                        Regras
+                    </button>
+                </li>
+                <li>
+                    <button class="left-bar-toggles" id="class-toggle" aria-controls="left-bar" aria-expanded="false" title="Ver classificação">
+                        Classificação
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <div class="class-content" id="class-content" hidden>
+            <h2 id="class-title">Classificação</h2>
+            <div class="class-content" id="class-table">
+                <h3 style="align-self: center">Ranking</h3>
+                <ol id="class-table-items">
+                    <li id="first-place">player1234 - 1000pts</li>
+                    <li id="second-place">player727 - 900pts</li>
+                    <li id="third-place">player09098 - 800pts</li>
+                    <li id="remaining-place">...</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="rules-content" id="rules-content" hidden>
+            <h2 id="rules-title">Regras completas — Tâb</h2>
+
+            <!-- Sumário / índice de navegação das regras -->
+            <nav class="rules-toc" aria-label="Sumário das regras">
+                <strong>Sumário</strong>
+                <ol>
+                    <li><a href="#introducao">Introdução</a></li>
+                    <li><a href="#tabuleiro">Tabuleiro</a></li>
+                    <li><a href="#pecas">Peças e colocação inicial</a></li>
+                    <li><a href="#objetivo">Objetivo</a></li>
+                    <li><a href="#equipamento">Equipamento (varetas)</a></li>
+                    <li><a href="#lancamento">Lançamento e valores</a></li>
+                    <li><a href="#ativacao">Ativação: o lançamento "tâb"</a></li>
+                    <li><a href="#movimento">Movimento normal das peças</a></li>
+                    <li><a href="#caminho-detalhado">Caminho detalhado por cor</a></li>
+                    <li><a href="#territorio-inimigo">Território inimigo</a></li>
+                    <li><a href="#regras-territorio">Regras do território inimigo</a></li>
+                    <li><a href="#congelamento">Congelamento de peças</a></li>
+                    <li><a href="#captura">Captura</a></li>
+                    <li><a href="#vitoria">Condição de vitória</a></li>
+                    <li><a href="#fontes">Fontes</a></li>
+                </ol>
+            </nav>
+
+            <!-- Seções detalhadas das regras -->
+            <section id="introducao">
+                <h3>Introdução</h3>
+                <p>
+                    Tâb é um jogo tradicional de corrida e captura originário do norte da África e da Península Arábica,
+                    jogado por duas pessoas. As regras variam conforme a região; aqui é apresentada uma versão
+                    consolidada a partir de fontes históricas e contemporâneas.
+                </p>
+            </section>
+
+            <section id="tabuleiro">
+                <h3>Tabuleiro</h3>
+                <p>
+                    O tabuleiro padrão possui 4 linhas horizontais e um número ímpar de colunas (geralmente entre 7 e 15).
+                </p>
+                <ul>
+                    <li><strong>Linha 0 (superior):</strong> Linha inicial do jogador Vermelho</li>
+                    <li><strong>Linhas 1 e 2 (centrais):</strong> Área neutra de movimentação</li>
+                    <li><strong>Linha 3 (inferior):</strong> Linha inicial do jogador Azul</li>
+                </ul>
+            </section>
+
+            <section id="pecas">
+                <h3>Peças e colocação inicial</h3>
+                <ul>
+                    <li>Cada jogador posiciona suas peças em todas as casas da linha inicial correspondente.</li>
+                    <li>Exemplo: em um tabuleiro 4×7, o jogador Vermelho ocupa todas as 7 casas da linha 0; o jogador Azul ocupa as 7 casas da linha 3.</li>
+                    <li>Todas as peças começam <strong>inativas</strong> (bloqueadas) até serem ativadas.</li>
+                </ul>
+            </section>
+
+            <section id="objetivo">
+                <h3>Objetivo</h3>
+                <p>Capturar todas as peças do adversário, removendo-as do tabuleiro.</p>
+            </section>
+
+            <section id="equipamento">
+                <h3>Equipamento (varetas)</h3>
+                <p>
+                    São utilizadas quatro varetas, cada uma com dois lados distintos: um plano (face clara)
+                    e outro arqueado (face escura).
+                </p>
+            </section>
+
+            <section id="lancamento">
+                <h3>Lançamento e valores</h3>
+                <p>O número de passos é determinado pela quantidade de faces planas após o lançamento:</p>
+                <ul>
+                    <li><strong>0 planas</strong> (todas arqueadas): 6 passos + jogue novamente</li>
+                    <li><strong>1 plana:</strong> 1 passo + jogue novamente</li>
+                    <li><strong>2 planas:</strong> 2 passos</li>
+                    <li><strong>3 planas:</strong> 3 passos</li>
+                    <li><strong>4 planas:</strong> 4 passos + jogue novamente</li>
+                </ul>
+                <p><em>Nota:</em> Cada jogador só pode lançar os dados uma vez por turno. O valor obtido deve ser usado antes de passar a vez.</p>
+            </section>
+
+            <section id="ativacao">
+                <h3>Ativação</h3>
+                <p>
+                    Peças na linha inicial começam <strong>bloqueadas</strong> (inativas) e só podem ser ativadas
+                    com um lançamento de <strong>1</strong> (uma vareta plana).
+                </p>
+                <ul>
+                    <li>Ao ativar, a peça move exatamente 1 casa no caminho correspondente.</li>
+                    <li>Após ativação, o jogador ganha um lançamento adicional (bônus).</li>
+                    <li>Uma peça ativada permanece ativa pelo resto do jogo.</li>
+                </ul>
+            </section>
+
+            <section id="movimento">
+                <h3>Movimento normal das peças</h3>
+                <p>As peças movem-se seguindo um padrão específico conforme sua cor:</p>
+                <ul>
+                    <li>Apenas peças <strong>ativas</strong> podem ser movidas (exceto durante ativação).</li>
+                    <li>O movimento segue um caminho contínuo específico para cada cor.</li>
+                    <li>Não é permitido empilhar peças da mesma cor na mesma casa.</li>
+                </ul>
+            </section>
+
+            <section id="caminho-detalhado">
+                <h3>Caminho detalhado por cor</h3>
+
+                <h4>Caminho do Jogador Vermelho (Linha 0)</h4>
+                <ol>
+                    <li><strong>Linha 0:</strong> Move da direita para esquerda (col n → col 0)</li>
+                    <li><strong>Linha 1:</strong> Move da esquerda para direita (col 0 → col n)</li>
+                    <li><strong>Linha 2:</strong> Move da direita para esquerda (col n → col 0)</li>
+                    <li><strong>Ponto de decisão (linha 2, col 0):</strong>
+                        <ul>
+                            <li>Pode continuar para linha 1 (retorno ao circuito neutro)</li>
+                            <li>Pode entrar na linha 3 (território inimigo azul) se condições forem atendidas</li>
+                        </ul>
+                    </li>
+                    <li><strong>Linha 3 (se entrar):</strong> Move da esquerda para direita (col 0 → col n), depois retorna à linha 2</li>
+                </ol>
+
+                <h4>Caminho do Jogador Azul (Linha 3)</h4>
+                <ol>
+                    <li><strong>Linha 3:</strong> Move da esquerda para direita (col 0 → col n)</li>
+                    <li><strong>Linha 2:</strong> Move da direita para esquerda (col n → col 0)</li>
+                    <li><strong>Linha 1:</strong> Move da esquerda para direita (col 0 → col n)</li>
+                    <li><strong>Ponto de decisão (linha 1, col n):</strong>
+                        <ul>
+                            <li>Pode continuar para linha 2 (retorno ao circuito neutro)</li>
+                            <li>Pode entrar na linha 0 (território inimigo vermelho) se condições forem atendidas</li>
+                        </ul>
+                    </li>
+                    <li><strong>Linha 0 (se entrar):</strong> Move da direita para esquerda (col n → col 0), depois retorna à linha 1</li>
+                </ol>
+            </section>
+
+            <section id="territorio-inimigo">
+                <h3>Território inimigo</h3>
+                <p>O território inimigo é a linha inicial do adversário:</p>
+                <ul>
+                    <li><strong>Para Vermelho:</strong> Linha 3 é território inimigo</li>
+                    <li><strong>Para Azul:</strong> Linha 0 é território inimigo</li>
+                </ul>
+
+                <h4>Condições para entrar no território inimigo</h4>
+                <p>Uma peça só pode entrar no território inimigo se:</p>
+                <ol>
+                    <li>O inimigo ainda possui peças em sua linha inicial, OU</li>
+                    <li>A peça já está no território inimigo (pode continuar movendo dentro dele)</li>
+                </ol>
+                <p><strong>Importante:</strong> Se o inimigo não tiver mais peças em sua linha inicial, peças no território neutro não podem entrar no território inimigo.</p>
+            </section>
+
+            <section id="regras-territorio">
+                <h3>Regras do território inimigo</h3>
+
+                <h4>Restrição de retorno</h4>
+                <p>
+                    Uma vez que uma peça <strong>sai completamente</strong> do território inimigo (retorna às linhas neutras),
+                    ela <strong>NÃO PODE MAIS RETORNAR</strong> ao território inimigo pelo resto do jogo.
+                </p>
+                <ul>
+                    <li>Peças que completaram o território inimigo recebem marca especial (visual)</li>
+                    <li>Estas peças só podem circular pelas linhas 1 e 2 (neutras)</li>
+                    <li>Tentativas de retorno ao território inimigo são bloqueadas automaticamente</li>
+                </ul>
+
+                <h4>Exemplo prático</h4>
+                <p><strong>Jogador Vermelho:</strong></p>
+                <ol>
+                    <li>Peça entra na linha 3 (território azul) pela posição (3, 0)</li>
+                    <li>Peça move pela linha 3 até a posição (3, 6)</li>
+                    <li>Peça sai do território inimigo retornando à linha 2</li>
+                    <li><strong>Agora esta peça está marcada e NÃO PODE mais entrar na linha 3</strong></li>
+                    <li>Peça só pode circular entre linhas 0, 1 e 2</li>
+                </ol>
+            </section>
+
+            <section id="congelamento">
+                <h3>Congelamento de peças</h3>
+                <p>Peças que estão no território inimigo ficam <strong>congeladas</strong> sob certas condições:</p>
+
+                <h4>Regra de congelamento</h4>
+                <ul>
+                    <li>Se você possui peças <strong>inativas</strong> (bloqueadas) em sua linha inicial</li>
+                    <li>E possui peças no território inimigo</li>
+                    <li>Então: <strong>as peças no território inimigo NÃO PODEM se mover</strong></li>
+                </ul>
+
+                <h4>Como descongelar</h4>
+                <p>Para que peças no território inimigo possam mover novamente:</p>
+                <ol>
+                    <li>Todas as peças da sua linha inicial devem estar ativas, OU</li>
+                    <li>Todas as peças da sua linha inicial devem ter saído dela</li>
+                </ol>
+
+                <h4>Exemplo prático</h4>
+                <p><strong>Situação:</strong> Jogador Vermelho tem:</p>
+                <ul>
+                    <li>3 peças inativas na linha 0</li>
+                    <li>2 peças circulando nas linhas 1 e 2</li>
+                    <li>1 peça no território inimigo (linha 3)</li>
+                </ul>
+                <p><strong>Resultado:</strong> A peça na linha 3 está CONGELADA e não pode se mover até que todas as peças da linha 0 sejam ativadas.</p>
+            </section>
+
+            <section id="captura">
+                <h3>Captura</h3>
+                <p>
+                    Ao pousar numa casa ocupada por uma peça inimiga, esta é <strong>removida do tabuleiro</strong> permanentemente.
+                </p>
+                <ul>
+                    <li>Capturas são indicadas visualmente com animação especial</li>
+                    <li>Capturas no território inimigo valem pontos estratégicos adicionais</li>
+                    <li>Não é possível capturar peças aliadas</li>
+                </ul>
+            </section>
+
+            <section id="vitoria">
+                <h3>Condição de vitória</h3>
+                <p>
+                    O jogo termina quando todas as peças de um jogador são capturadas.
+                    O jogador com peças restantes no tabuleiro é declarado vencedor.
+                </p>
+            </section>
+
+            <section id="fontes">
+                <h3>Fontes</h3>
+                <p>
+                    Referência: <a href="https://en.wikipedia.org/wiki/T%C3%A2b" target="_blank" rel="noopener">Wikipedia — Tâb</a>
+                </p>
+            </section>
+        </div>
+    </aside>
+
+    <main>
+        <!-- Caixa de mensagens do jogo -->
+        <div class="message-box" id="msg-box">
+            <h3>Relatório de jogo:</h3>
+            <div class="message" id="msg">
+                <p>Bem-vindo ao Tâb! Clique em "Jogar" para iniciar uma nova partida.</p>
+            </div>
+        </div>
+
+        <!-- Tabuleiro do jogo -->
+        <section id="game-board" class="game-board hidden">tabuleiro</section>
+
+        <!-- Botão principal para iniciar o jogo -->
+        <div id="playBtn" class="play-button" role="button" tabindex="0"
+             aria-haspopup="dialog" aria-controls="playDialog"
+             aria-expanded="false" title="Jogar">
+            Jogar
+        </div>
+
+        <!-- Janela modal de configuração de nova partida -->
+        <div id="overlay" class="overlay hidden" data-hidden="true">
+            <div id="playDialog" class="dialog" role="dialog"
+                 aria-modal="true" aria-labelledby="dialogTitle">
+
+                <h2 id="dialogTitle">Novo Jogo</h2>
+
+                <form id="playForm" autocomplete="off">
+
+                    <!-- Parâmetro: tamanho do tabuleiro -->
+                    <label for="boardSize">Tamanho do tabuleiro</label>
+                    <input
+                            id="boardSize"
+                            name="boardSize"
+                            type="number"
+                            min="5"
+                            max="15"
+                            step="2"
+                            value="7"
+                            title="Escolha um tamanho ímpar (7, 9, 11...)"
+                    />
+
+                    <!-- Seleção de tipo de oponente -->
+                    <fieldset>
+                        <legend>Adversário</legend>
+                        <label>
+                            <input type="radio" name="opponent" value="human" checked /> Humano
+                        </label>
+                        <label>
+                            <input type="radio" name="opponent" value="pc" /> Computador
+                        </label>
+                    </fieldset>
+
+                    <!-- Seleção de cor das peças -->
+                    <fieldset>
+                        <legend>Suas peças</legend>
+                        <label>
+                            <input type="radio" name="playerColor" value="red" checked /> Vermelho (Topo)
+                        </label>
+                        <label>
+                            <input type="radio" name="playerColor" value="blue" /> Azul (Base)
+                        </label>
+                    </fieldset>
+
+
+                    <!-- Opções adicionais para jogo contra IA -->
+                    <div id="pcOptions" class="pc-options hidden" aria-hidden="true">
+                        <label for="difficulty">Dificuldade da IA</label>
+                        <select id="difficulty" name="difficulty">
+                            <option value="easy">Fácil</option>
+                            <option value="medium" selected>Médio</option>
+                            <option value="hard">Difícil</option>
+                        </select>
+                    </div>
+
+                    <!-- Definição de quem inicia a partida -->
+                    <label for="starter">Quem começa</label>
+                    <select id="starter" name="starter">
+                        <option value="player" selected>Vermelho</option>
+                        <option value="pc">Azul</option>
+                        <option value="random">Aleatório</option>
+                    </select>
+
+                    <!-- Botões de controle do diálogo -->
+                    <div class="actions">
+                        <button type="button" id="cancelBtn" class="btn btn-secondary">Cancelar</button>
+                        <button type="submit" id="confirmBtn" class="btn btn-primary">Confirmar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Barra lateral direita (Comandos de jogo) -->
+    <aside class="sidebar" id="right-bar">
+        <h2>Comandos</h2>
+
+        <!-- Área de lançamento das varetas/dados -->
+        <div class="dice-area">
+            <button id="roll-dice">Jogar Dados</button>
+            <div class="dice-result">
+                <div class="dice-images">
+                    <!-- As imagens dos dados/varetas são geradas dinamicamente -->
+                </div>
+                <div class="dice-total">Resultado: —</div>
+            </div>
+        </div>
+
+        <!-- Botão para pular turno -->
+        <div class="skip" id="skip-button" role="button" tabindex="0">
+            pular a vez
+        </div>
+
+        <!-- Botão para desistir do jogo -->
+        <div class="forfeit" id="forfeit-button" role="button" tabindex="0">
+            desistir
+        </div>
+    </aside>
+</div>
+
+<div class="footer">
+    <h1>Tâb - Jogo de Tabuleiro Tradicional</h1>
+</div>
+
+</body>
+</html>

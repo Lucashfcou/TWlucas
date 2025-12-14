@@ -1,0 +1,16 @@
+{
+  "name": "twlucas-tab-online",
+  "version": "1.0.0",
+  "description": "TÂB - Traditional Board Game with Online Multiplayer",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "keywords": ["tab", "board-game", "multiplayer", "game"],
+  "author": "TWlucas",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
