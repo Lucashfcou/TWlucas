@@ -247,6 +247,8 @@ function doPass(gameId, username) {
     game.diceRolled = false;
     game.diceUsed = false;
     game.bonusRoll = false;
+    // CRÍTICO: Resetar o dado para permitir que o próximo jogador lance
+    game.diceValue = null;
     
     dataManager.updateGame(gameId, game);
     
@@ -324,11 +326,73 @@ function leaveGame(gameId, username) {
     return { success: true, message: 'Game already finished' };
 }
 
+// Criar ou entrar em sala (sistema simplificado)
+function roomGame(username, roomPassword) {
+    // Verificar se sala existe
+    const roomKey = `room_${roomPassword}`;
+    let room = dataManager.getRoom(roomKey);
+    
+    if (!room) {
+        // CRIAR SALA - Jogador 1 (Azul)
+        const gameId = dataManager.generateGameId(roomPassword + Date.now(), username);
+        room = {
+            gameId: gameId,
+            player1: username,
+            player2: null,
+            status: 'waiting',
+            createdAt: Date.now()
+        };
+        dataManager.saveRoom(roomKey, room);
+        
+        return { 
+            success: true,
+            waiting: true,
+            message: "Sala criada. Aguardando oponente...",
+            color: 'blue',
+            roomKey: roomKey
+        };
+    } 
+    else if (room.status === 'waiting' && room.player1 !== username) {
+        // ENTRAR NA SALA - Jogador 2 (Vermelho)
+        room.player2 = username;
+        room.status = 'playing';
+        
+        // Criar o jogo
+        const newGame = dataManager.createGame(room.player1, room.player2);
+        room.gameId = newGame.id;
+        dataManager.saveRoom(roomKey, room);
+        
+        return { 
+            success: true,
+            gameId: newGame.id,
+            color: 'red',
+            message: "Jogo iniciado!",
+            opponent: room.player1
+        };
+    }
+    else if (room.player1 === username || room.player2 === username) {
+        // Reconectar
+        const isPlayer1 = room.player1 === username;
+        return { 
+            success: true,
+            gameId: room.gameId,
+            color: isPlayer1 ? 'blue' : 'red',
+            opponent: isPlayer1 ? room.player2 : room.player1,
+            status: room.status,
+            waiting: room.status === 'waiting'
+        };
+    }
+    else {
+        return { success: false, error: "Sala cheia" };
+    }
+}
+
 module.exports = {
     joinGame,
     doRoll,
     doNotify,
     doPass,
     updateGame,
-    leaveGame
+    leaveGame,
+    roomGame
 };

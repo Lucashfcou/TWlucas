@@ -9,6 +9,112 @@ let onlineGameState = {
     lastUpdate: null
 };
 
+// Estado do sistema de salas
+let roomCheckInterval = null;
+
+// Configurar event listener para o botão de sala
+document.addEventListener('DOMContentLoaded', function() {
+    const joinRoomBtn = document.getElementById('join-room-btn');
+    const roomPasswordInput = document.getElementById('room-password');
+    const roomStatus = document.getElementById('room-status');
+    
+    if (joinRoomBtn) {
+        joinRoomBtn.addEventListener('click', async () => {
+            const roomPass = roomPasswordInput.value.trim();
+            
+            if (!roomPass) {
+                roomStatus.textContent = "Digite uma senha para a sala!";
+                roomStatus.style.color = '#f44336';
+                return;
+            }
+            
+            if (!window.loginManager || !window.loginManager.username) {
+                roomStatus.textContent = "Você precisa fazer login primeiro!";
+                roomStatus.style.color = '#f44336';
+                return;
+            }
+            
+            roomStatus.textContent = "Conectando...";
+            roomStatus.style.color = '#666';
+            
+            const result = await window.loginManager.joinRoom(roomPass);
+            
+            if (result.success) {
+                if (result.waiting) {
+                    // Jogador 1 - aguardando oponente
+                    roomStatus.textContent = "Sala criada! Aguardando oponente...";
+                    roomStatus.style.color = '#2196F3';
+                    joinRoomBtn.disabled = true;
+                    
+                    // Iniciar polling para verificar se oponente entrou
+                    checkForOpponent(roomPass);
+                } 
+                else if (result.gameId) {
+                    // Jogador 2 - jogo iniciado ou reconectando
+                    roomStatus.textContent = "Oponente encontrado! Iniciando jogo...";
+                    roomStatus.style.color = '#4CAF50';
+                    joinRoomBtn.disabled = true;
+                    
+                    // Parar verificação se estiver rodando
+                    if (roomCheckInterval) {
+                        clearInterval(roomCheckInterval);
+                        roomCheckInterval = null;
+                    }
+                    
+                    // Iniciar jogo
+                    setTimeout(() => {
+                        startOnlineGameSimple(result.gameId, result.color, result.opponent);
+                    }, 1000);
+                }
+            } else {
+                roomStatus.textContent = result.error || "Erro ao conectar";
+                roomStatus.style.color = '#f44336';
+            }
+        });
+    }
+});
+
+// Verificar periodicamente se oponente entrou
+function checkForOpponent(roomPass) {
+    if (roomCheckInterval) {
+        clearInterval(roomCheckInterval);
+    }
+    
+    roomCheckInterval = setInterval(async () => {
+        const result = await window.loginManager.joinRoom(roomPass);
+        
+        if (result.success && result.gameId && !result.waiting) {
+            clearInterval(roomCheckInterval);
+            roomCheckInterval = null;
+            
+            const roomStatus = document.getElementById('room-status');
+            if (roomStatus) {
+                roomStatus.textContent = "Oponente encontrado! Iniciando jogo...";
+                roomStatus.style.color = '#4CAF50';
+            }
+            
+            // Iniciar jogo
+            setTimeout(() => {
+                startOnlineGameSimple(result.gameId, result.color, result.opponent);
+            }, 1000);
+        }
+    }, 2000);
+}
+
+// Iniciar jogo online simplificado (usa a função existente)
+function startOnlineGameSimple(gameId, myColor, opponent) {
+    // Esconder o painel de salas
+    const onlinePanel = document.getElementById('online-panel');
+    if (onlinePanel) {
+        onlinePanel.style.display = 'none';
+    }
+    
+    // Usar a função existente
+    if (typeof window.startOnlineGame === 'function') {
+        window.startOnlineGame(gameId, myColor, opponent);
+    }
+}
+
 // Callback para atualizações do servidor
 window.onGameUpdate = function(serverGame) {
     if (!onlineGameState.isOnline) return;

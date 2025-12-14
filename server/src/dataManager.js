@@ -8,6 +8,7 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const GAMES_FILE = path.join(DATA_DIR, 'games.json');
 const RANKINGS_FILE = path.join(DATA_DIR, 'rankings.json');
 const QUEUE_FILE = path.join(DATA_DIR, 'queue.json');
+const ROOMS_FILE = path.join(DATA_DIR, 'rooms.json');
 
 // Garante que o diretório de dados existe
 function ensureDataDir() {
@@ -266,6 +267,38 @@ function matchPlayers() {
     return null;
 }
 
+// === SALAS ===
+
+function getRooms() {
+    return loadData(ROOMS_FILE, {});
+}
+
+function saveRooms(rooms) {
+    return saveData(ROOMS_FILE, rooms);
+}
+
+function getRoom(roomKey) {
+    const rooms = getRooms();
+    return rooms[roomKey] || null;
+}
+
+function saveRoom(roomKey, roomData) {
+    const rooms = getRooms();
+    rooms[roomKey] = roomData;
+    saveRooms(rooms);
+    return roomData;
+}
+
+function deleteRoom(roomKey) {
+    const rooms = getRooms();
+    if (rooms[roomKey]) {
+        delete rooms[roomKey];
+        saveRooms(rooms);
+        return true;
+    }
+    return false;
+}
+
 module.exports = {
     hashPassword,
     generateGameId,
@@ -279,5 +312,9 @@ module.exports = {
     addToQueue,
     removeFromQueue,
     matchPlayers,
-    getUsers
+    getUsers,
+    getRoom,
+    saveRoom,
+    deleteRoom,
+    getRooms
 };
