@@ -4,6 +4,16 @@ const rules = require('./rules');
 
 // Entrar na fila ou jogo
 function joinGame(username) {
+    // Adicionar à fila primeiro
+    const result = dataManager.addToQueue(username);
+    
+    if (!result.success) {
+        return {
+            success: false,
+            error: result.error
+        };
+    }
+    
     // Tentar matchmaking
     const match = dataManager.matchPlayers();
     
@@ -19,21 +29,12 @@ function joinGame(username) {
             status: 'matched'
         };
     } else {
-        // Adicionar à fila
-        const result = dataManager.addToQueue(username);
-        
-        if (result.success) {
-            return {
-                success: true,
-                status: 'waiting',
-                position: result.position
-            };
-        } else {
-            return {
-                success: false,
-                error: result.error
-            };
-        }
+        // Ainda aguardando na fila
+        return {
+            success: true,
+            status: 'waiting',
+            position: result.position
+        };
     }
 }
 
