@@ -172,6 +172,8 @@ window.onGameUpdate = function(serverGame) {
                     updateMessage(`Paus: ${serverGame.diceValue}. Sem jogadas possíveis, relance os dados!`);
                 } else {
                     updateMessage(`Sua vez! Valor do dado: ${serverGame.diceValue}. Escolha uma peça para mover.`);
+                    // Destacar peças que podem se mover
+                    makeOnlinePiecesSelectable();
                 }
             }
         } else {
@@ -267,49 +269,162 @@ function setupOnlineClickHandlers() {
     const cells = document.querySelectorAll('.cell');
     
     cells.forEach((cell, cellIndex) => {
-        const piece = cell.querySelector('.piece');
-        
-        if (piece) {
-            piece.onclick = async function() {
-                const color = piece.dataset.color;
-                const pieceIndex = parseInt(piece.dataset.index);
-                
-                // Apenas permitir cliques nas minhas peças
-                if (color !== onlineGameState.myColor) {
-                    return;
-                }
-                
-                // Verificar se é minha vez
-                if (window.gameState.currentPlayer !== onlineGameState.myColor) {
-                    updateMessage('Não é a sua vez!');
-                    return;
-                }
-                
-                // Verificar se o dado foi lançado
-                if (!window.gameState.diceRolled || window.gameState.diceUsed) {
-                    updateMessage('Você precisa lançar os dados primeiro!');
-                    return;
-                }
-                
-                // Enviar jogada para o servidor
-                const result = await window.loginManager.doNotify(pieceIndex);
-                
-                if (result.success) {
-                    // Atualização será recebida via polling
-                    if (result.captured) {
-                        updateMessage(`Capturou uma peça ${result.captured.color}!`);
-                    }
-                    
-                    if (result.gameOver) {
-                        // Fim de jogo será tratado no onGameUpdate
-                    } else if (result.bonusRoll) {
-                        updateMessage('Bônus! Lance os dados novamente!');
-                    }
+        cell.onclick = async function() {
+            // Verificar se é minha vez
+            if (!window.gameLogic || !window.gameLogic.gameState) return;
+            
+            const gameState = window.gameLogic.gameState;
+            
+            if (gameState.currentPlayer !== onlineGameState.myColor) {
+                updateMessage('Não é a sua vez!');
+                return;
+            }
+            
+            // Verificar se o dado foi lançado
+            if (!gameState.diceRolled || gameState.diceValue === 0) {
+                updateMessage('Você precisa lançar os dados primeiro!');
+                return;
+            }
+            
+            // Verificar se já usou o dado
+            if (gameState.diceUsed) {
+                updateMessage('Você já usou este dado!');
+                return;
+            }
+            
+            const { row, col } = window.getRowCol(cellIndex, gameState.boardSize);
+            const myPiece = window.findPieceAt(row, col, onlineGameState.myColor);
+            
+            // Se clicou em uma de minhas peças
+            if (myPiece) {
+                await handleOnlinePieceClick(cellIndex, myPiece);
+            } 
+            // Se clicou em uma célula de movimento possível
+            else if (cell.classList.contains('possible-move') || cell.classList.contains('capture-move')) {
+                await handleOnlineMoveClick(cellIndex);
+            }
+        };
+    });
+}
+
+// Handler de clique em peça para modo online
+async function handleOnlinePieceClick(cellIndex, piece) {
+    const gameState = window.gameLogic.gameState;
+    
+    // Se clicar na peça já selecionada, desmarcar
+    if (gameState.selectedPiece === piece) {
+        window.clearSelection();
+        makeOnlinePiecesSelectable();
+        updateMessage("Peça desmarcada. Escolha outra peça ou pule a vez.");
+        return;
+    }
+    
+    // Se é peça inativa, tentar ativar com valor 1
+    if (!piece.active) {
+        if (gameState.diceValue === 1) {
+            if (!window.canActivatePiece(piece, onlineGameState.myColor)) {
+                updateMessage("Esta peça não pode ser ativada - está bloqueada e não tem movimentos válidos!");
+                return;
+            }
+            
+            // Ativar peça e enviar para servidor
+            const pieceIndex = gameState.pieces[onlineGameState.myColor].indexOf(piece);
+            const result = await window.loginManager.doNotify(pieceIndex);
+            
+            if (result.success) {
+                // Atualização visual virá do servidor via polling
+                if (result.captured) {
+                    updateMessage(`Capturou uma peça ${result.captured.color}!`);
+                } else if (result.bonusRoll) {
+                    updateMessage('Peça ativada! Lance os dados novamente!');
                 } else {
-                    updateMessage(`Erro: ${result.error}`);
+                    updateMessage('Peça ativada e movida!');
                 }
-            };
+            } else {
+                updateMessage(`Erro: ${result.error}`);
+            }
+        } else {
+            updateMessage(`Esta peça está bloqueada! Você precisa tirar 1 nos dados para ativar (você tirou ${gameState.diceValue}).`);
         }
+        return;
+    }
+    
+    // Verificar se a peça pode se mover (não congelada)
+    if (!window.canPieceMove || !window.canPieceMove(piece, onlineGameState.myColor)) {
+        updateMessage("Esta peça está em território inimigo e não pode se mover até que todas as suas peças saiam da linha inicial!");
+        return;
+    }
+    
+    // Selecionar peça e mostrar movimentos possíveis
+    gameState.selectedPiece = piece;
+    window.highlightSelectedPiece(cellIndex);
+    
+    const validMoves = window.getValidMoves(piece, gameState.diceValue, onlineGameState.myColor);
+    gameState.possibleMoves = validMoves;
+    
+    if (validMoves.length === 0) {
+        updateMessage("Sem movimentos válidos para esta peça! Escolha outra ou pule a vez.");
+        window.clearSelection();
+        makeOnlinePiecesSelectable();
+        return;
+    }
+    
+    window.showPossibleMoves(validMoves);
+    const cells = document.querySelectorAll('.cell');
+    cells[cellIndex].classList.add('selectable');
+    updateMessage(`Peça selecionada! Clique nela novamente para desmarcar ou escolha onde mover.`);
+}
+
+// Handler de clique em movimento para modo online
+async function handleOnlineMoveClick(cellIndex) {
+    const gameState = window.gameLogic.gameState;
+    
+    if (!gameState.selectedPiece) return;
+    
+    const { row, col } = window.getRowCol(cellIndex, gameState.boardSize);
+    const moveValid = gameState.possibleMoves.some(m => m.row === row && m.col === col);
+    
+    if (!moveValid) {
+        updateMessage("Movimento inválido!");
+        return;
+    }
+    
+    // Enviar movimento para o servidor
+    const pieceIndex = gameState.pieces[onlineGameState.myColor].indexOf(gameState.selectedPiece);
+    const result = await window.loginManager.doNotify(pieceIndex);
+    
+    if (result.success) {
+        window.clearSelection();
+        
+        if (result.captured) {
+            updateMessage(`Capturou uma peça ${result.captured.color}!`);
+        }
+        
+        if (result.gameOver) {
+            // Fim de jogo será tratado no onGameUpdate
+        } else if (result.bonusRoll) {
+            updateMessage('Bônus! Lance os dados novamente!');
+        } else {
+            updateMessage('Movimento realizado!');
+        }
+    } else {
+        updateMessage(`Erro: ${result.error}`);
+        window.clearSelection();
+        makeOnlinePiecesSelectable();
+    }
+}
+
+// Tornar minhas peças selecionáveis no modo online
+function makeOnlinePiecesSelectable() {
+    const gameState = window.gameLogic.gameState;
+    if (!gameState || gameState.diceValue === 0) return;
+    
+    window.clearHighlights();
+    
+    gameState.pieces[onlineGameState.myColor].forEach(piece => {
+        const cellIndex = window.getCellIndex(piece.row, piece.col, gameState.boardSize);
+        const cells = document.querySelectorAll('.cell');
+        cells[cellIndex].classList.add('selectable');
     });
 }
 
@@ -373,7 +488,10 @@ window.startOnlineGame = function(gameId, playerColor, opponent) {
                 window.gameState.diceUsed = false;
                 window.gameState.bonusRoll = result.bonusRoll;
                 
-                updateMessage(`Você lançou os dados! Resultado: ${result.value}. ${result.bonusRoll ? 'Você terá uma jogada extra!' : ''}`);
+                updateMessage(`Você lançou os dados! Resultado: ${result.value}. ${result.bonusRoll ? 'Você terá uma jogada extra!' : ''} Selecione uma peça para mover.`);
+                
+                // Usar a mesma lógica do jogo local: destacar peças que podem mover
+                makeOnlinePiecesSelectable();
             } else {
                 updateMessage(`Erro ao lançar dados: ${result.error}`);
             }

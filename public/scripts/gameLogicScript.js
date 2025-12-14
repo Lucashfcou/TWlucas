@@ -767,11 +767,16 @@ window.updatePieceDisplay = updatePieceDisplay;
 window.highlightSelectedPiece = highlightSelectedPiece;
 window.showPossibleMoves = showPossibleMoves;
 window.canActivatePiece = canActivatePiece;
+window.canPieceMove = canPieceMove;
 window.isInEnemyTerritory = isInEnemyTerritory;
 window.isPositionInEnemyTerritory = isPositionInEnemyTerritory;
 window.enemyHasPiecesInInitialRow = enemyHasPiecesInInitialRow;
 window.hasNoPiecesInInitialRow = hasNoPiecesInInitialRow;
 window.getValidMoves = getValidMoves;
+window.getBlueValidMoves = getBlueValidMoves;
+window.getRedValidMoves = getRedValidMoves;
+window.handlePieceClick = handlePieceClick;
+window.handleMoveClick = handleMoveClick;
 
 window.gameLogic = {
     initializePieces,
