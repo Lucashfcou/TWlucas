@@ -430,6 +430,14 @@
     <aside class="sidebar" id="right-bar">
         <h2>Comandos</h2>
 
+        <!-- Painel de jogo online simplificado -->
+        <div id="online-panel" class="online-panel" style="margin-bottom: 20px; padding: 15px; background: #f0f0f0; border-radius: 8px; display: none;">
+            <h3 style="margin-top: 0;">Jogar Online</h3>
+            <input type="text" id="room-password" placeholder="Senha da sala" style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            <button id="join-room-btn" style="width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Criar/Entrar Sala</button>
+            <p id="room-status" style="margin-top: 10px; font-size: 14px; color: #666;"></p>
+        </div>
+
         <!-- Área de lançamento das varetas/dados -->
         <div class="dice-area">
             <button id="roll-dice">Jogar Dados</button>

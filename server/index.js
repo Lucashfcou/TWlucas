@@ -198,6 +198,18 @@ function handleAPIRequest(req, res, pathname) {
         sendJSON(res, 200, result);
     }
     
+    // POST /api/room - Criar ou entrar em sala (sistema simplificado)
+    else if (pathname === '/api/room' && req.method === 'POST') {
+        parseBody(req, (err, data) => {
+            if (err || !data.username || !data.roomPassword) {
+                return sendJSON(res, 400, { error: 'Invalid request' });
+            }
+            
+            const result = gameAPI.roomGame(data.username, data.roomPassword);
+            sendJSON(res, 200, result);
+        });
+    }
+    
     // Rota não encontrada
     else {
         sendJSON(res, 404, { error: 'API endpoint not found' });

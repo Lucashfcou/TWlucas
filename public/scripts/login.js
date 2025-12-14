@@ -139,6 +139,47 @@ class LoginManager {
         }
     }
     
+    // Entrar em sala com senha (sistema simplificado)
+    async joinRoom(roomPassword) {
+        if (!this.username) {
+            return { success: false, error: 'Not logged in' };
+        }
+        
+        try {
+            const response = await fetch(`${this.baseURL}/api/room`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    username: this.username,
+                    roomPassword: roomPassword 
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Se foi matched (player 2 entrando), configurar jogo
+                if (data.gameId && !data.waiting) {
+                    this.gameId = data.gameId;
+                    this.playerColor = data.color;
+                    this.opponent = data.opponent;
+                    this.isOnlineMode = true;
+                    this.saveSession();
+                    
+                    // Iniciar polling
+                    this.startPolling();
+                }
+                
+                return data;
+            } else {
+                return { success: false, error: data.error };
+            }
+        } catch (error) {
+            console.error('Join room error:', error);
+            return { success: false, error: 'Network error' };
+        }
+    }
+    
     // Lançar dados
     async doRoll() {
         if (!this.gameId || !this.username) {
@@ -322,6 +363,12 @@ class LoginManager {
                     location.reload();
                 });
             }
+        }
+        
+        // Mostrar painel online simplificado
+        const onlinePanel = document.getElementById('online-panel');
+        if (onlinePanel) {
+            onlinePanel.style.display = 'block';
         }
     }
     
