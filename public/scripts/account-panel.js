@@ -85,12 +85,50 @@
     }
 
     function updatePanelContent() {
-        const isLoggedIn = window.RankingSystem && window.RankingSystem.isUserLoggedIn();
+        // Priorizar login online se disponível
+        const loginManager = window.loginManager;
+        const isLoggedInOnline = loginManager && loginManager.username;
+        const isLoggedInLocal = window.RankingSystem && window.RankingSystem.isUserLoggedIn();
         const panelInner = panel.querySelector('.panel-inner');
 
         if (! panelInner) return;
 
-        if (isLoggedIn) {
+        if (isLoggedInOnline) {
+            // Usuário logado online - mostrar opções online
+            panelInner.innerHTML = `
+                <h3>Olá, ${loginManager.username}!</h3>
+                <div class="account-info">
+                    <button type="button" class="btn btn-primary" id="play-online-btn">Jogar Online</button>
+                    <button type="button" class="btn btn-secondary" id="view-ranking-btn">Ver Classificação</button>
+                    <button type="button" class="btn btn-secondary" id="logout-btn">Sair</button>
+                </div>
+            `;
+
+            // Adiciona listeners
+            const playOnlineBtn = panelInner.querySelector('#play-online-btn');
+            if (playOnlineBtn) {
+                playOnlineBtn.addEventListener('click', () => {
+                    closePanel();
+                    loginManager.handlePlayOnline();
+                });
+            }
+
+            const viewRankingBtn = panelInner.querySelector('#view-ranking-btn');
+            if (viewRankingBtn) {
+                viewRankingBtn.addEventListener('click', () => {
+                    closePanel();
+                    loginManager.handleViewRanking();
+                });
+            }
+
+            const logoutBtn = panelInner.querySelector('#logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', () => {
+                    loginManager.clearSession();
+                    location.reload();
+                });
+            }
+        } else if (isLoggedInLocal) {
             const username = window.RankingSystem.getCurrentUser();
             const profile = window.RankingSystem. getPlayerProfile(username);
             const rank = window.RankingSystem.getPlayerRank(username);
@@ -140,13 +178,16 @@
                     <label for="username">Usuário</label>
                     <input id="username" name="username" type="text" autocomplete="username" required />
 
+                    <label for="password">Senha</label>
+                    <input id="password" name="password" type="password" autocomplete="current-password" required />
+
                     <div class="panel-row">
                         <button type="submit" class="btn btn-primary" id="login-submit">Entrar</button>
                     </div>
 
                     <div class="panel-create">
                         <small style="color: var(--c7-color); text-align: center; display: block; margin-top: 8px;">
-                            Digite seu nome de usuário para começar
+                            Será criada uma conta se não existir
                         </small>
                     </div>
                 </form>
@@ -160,17 +201,28 @@
         }
     }
 
-    function handleLogin(e) {
+    async function handleLogin(e) {
         e.preventDefault();
         const formData = new FormData(e. target);
         const username = formData.get('username');
+        const password = formData.get('password');
 
         if (!username || username.trim().length < 3) {
             alert('O nome de usuário deve ter pelo menos 3 caracteres! ');
             return;
         }
 
-        if (window.RankingSystem) {
+        // Tentar login online primeiro
+        if (window.loginManager && password) {
+            const result = await window.loginManager.registerUser(username.trim(), password);
+            if (result.success) {
+                updatePanelContent();
+                alert(`Bem-vindo, ${username.trim()}!`);
+            } else {
+                alert(`Erro ao fazer login: ${result.error}`);
+            }
+        } else if (window.RankingSystem) {
+            // Fallback para sistema local
             window.RankingSystem.setCurrentUser(username. trim());
             updatePanelContent();
             alert(`Bem-vindo, ${username. trim()}!`);
