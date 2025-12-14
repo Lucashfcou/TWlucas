@@ -17,10 +17,21 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // Validação: previne novo lançamento com valor não utilizado
+        // CORREÇÃO PROBLEMA 3: Permitir relançar se dado é repetível (1, 4, 6) E não há jogadas
         if (window.gameLogic.gameState.diceValue > 0 && !window.gameLogic.gameState.diceUsed) {
-            updateMessage(`⚠️ Você já rolou os dados (${window.gameLogic.gameState.diceValue} passos)! Use este valor ou pule a vez.`);
-            return;
+            const isRepeatable = window.gameLogic.gameState.diceValue === 1 || 
+                                window.gameLogic.gameState.diceValue === 4 || 
+                                window.gameLogic.gameState.diceValue === 6;
+            const hasNoMoves = window.hasAnyValidMoves && 
+                              !window.hasAnyValidMoves(window.gameLogic.gameState.currentPlayer, window.gameLogic.gameState.diceValue);
+            
+            // Se é repetível E não tem jogadas, permitir relançar
+            if (!isRepeatable || !hasNoMoves) {
+                updateMessage(`⚠️ Você já rolou os dados (${window.gameLogic.gameState.diceValue} passos)! Use este valor ou pule a vez.`);
+                return;
+            }
+            // Se chegou aqui, pode relançar
+            updateMessage(`Relançando... Dado anterior: ${window.gameLogic.gameState.diceValue} (sem jogadas possíveis)`);
         }
 
         diceImagesContainer.innerHTML = "";
@@ -83,12 +94,38 @@ document.addEventListener("DOMContentLoaded", () => {
                 window.gameLogic.gameState.bonusRoll = bonusRoll;
                 window.gameLogic.gameState.diceUsed = false; // Marca dado como não utilizado
 
-                updateMessage(`Você tirou ${steps} passo${steps !== 1 ? 's' : ''}! ${bonusRoll ? 'Pode jogar novamente após mover.' : 'Selecione uma peça para mover.'}`);
-                window.gameLogic.makeCurrentPlayerPiecesSelectable();
+                // CORREÇÃO PROBLEMA 3: Verificar se precisa relançar (repetível + sem jogadas)
+                const isRepeatable = steps === 1 || steps === 4 || steps === 6;
+                const hasNoMoves = window.hasAnyValidMoves && 
+                                  !window.hasAnyValidMoves(window.gameLogic.gameState.currentPlayer, steps);
+                
+                if (isRepeatable && hasNoMoves) {
+                    // Caso especial: dado repetível mas sem jogadas - DEVE relançar
+                    updateMessage(`Paus: ${steps}. Sem jogadas possíveis, relance os dados!`);
+                    rollButton.disabled = false;
+                    rollButton.textContent = "Relançar Paus";
+                    rollButton.title = "Relançar os dados";
+                    
+                    // Bloquear botão de passar vez
+                    const skipButton = document.getElementById('skip-button');
+                    if (skipButton) {
+                        skipButton.disabled = true;
+                    }
+                } else {
+                    updateMessage(`Você tirou ${steps} passo${steps !== 1 ? 's' : ''}! ${bonusRoll ? 'Pode jogar novamente após mover.' : 'Selecione uma peça para mover.'}`);
+                    window.gameLogic.makeCurrentPlayerPiecesSelectable();
 
-                // Desabilita botão até que valor seja utilizado
-                rollButton.disabled = true;
-                rollButton.title = "Você deve usar o valor dos dados antes de rolar novamente";
+                    // Desabilita botão até que valor seja utilizado
+                    rollButton.disabled = true;
+                    rollButton.textContent = "Jogar Paus";
+                    rollButton.title = "Você deve usar o valor dos dados antes de rolar novamente";
+                    
+                    // Habilitar botão de passar vez
+                    const skipButton = document.getElementById('skip-button');
+                    if (skipButton) {
+                        skipButton.disabled = false;
+                    }
+                }
             }
         }, 300);
     });

@@ -167,7 +167,8 @@ function createGame(player1, player2, boardSize = 7) {
         player1,
         player2,
         boardSize,
-        currentPlayer: 'red',
+        // CORREÇÃO: player1 é AZUL e joga primeiro
+        currentPlayer: 'blue',
         diceValue: 0,
         diceRolled: false,
         diceUsed: false,
