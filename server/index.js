@@ -1,4 +1,6 @@
-// index.js - Servidor HTTP nativo para o jogo TÂB
+// server/index.js - Servidor HTTP para Entrega 3
+// Replica EXATAMENTE a API oficial da Entrega 2
+
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -7,7 +9,10 @@ const url = require('url');
 const dataManager = require('./src/dataManager');
 const gameAPI = require('./src/gameAPI');
 
-const PORT = 8100;
+// ⚠️ IMPORTANTE: Ajuste a porta para 81XX onde XX = número do seu grupo
+const PORT = 8121; // Local development
+// const PORT = 8115; // Produção: 81XX onde XX = número do grupo
+
 const PUBLIC_DIR = path.join(__dirname, '../public');
 
 // Tipos MIME
@@ -24,17 +29,17 @@ const MIME_TYPES = {
     '.ico': 'image/x-icon'
 };
 
-
-
-// Servir arquivos estáticos
+// ===================================================
+// SERVIR ARQUIVOS ESTÁTICOS
+// ===================================================
 function serveStaticFile(filePath, res) {
     const ext = path.extname(filePath);
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-    
+
     fs.readFile(filePath, (err, data) => {
         if (err) {
             if (err.code === 'ENOENT') {
-                // Arquivo não encontrado - tentar servir index.html (SPA fallback)
+                // Arquivo não encontrado - fallback para index.html (SPA)
                 const indexPath = path.join(PUBLIC_DIR, 'index.html');
                 fs.readFile(indexPath, (err, data) => {
                     if (err) {
@@ -56,14 +61,16 @@ function serveStaticFile(filePath, res) {
     });
 }
 
-// Parse JSON do body da requisição
+// ===================================================
+// PARSE BODY JSON
+// ===================================================
 function parseBody(req, callback) {
     let body = '';
-    
+
     req.on('data', chunk => {
         body += chunk.toString();
     });
-    
+
     req.on('end', () => {
         try {
             const data = body ? JSON.parse(body) : {};
@@ -74,7 +81,9 @@ function parseBody(req, callback) {
     });
 }
 
-// Enviar resposta JSON
+// ===================================================
+// ENVIAR RESPOSTA JSON
+// ===================================================
 function sendJSON(res, statusCode, data) {
     res.writeHead(statusCode, {
         'Content-Type': 'application/json',
@@ -85,189 +94,261 @@ function sendJSON(res, statusCode, data) {
     res.end(JSON.stringify(data));
 }
 
-// Router de API
-function handleAPIRequest(req, res, pathname) {
+// ===================================================
+// ROUTER DE API
+// ===================================================
+function handleAPIRequest(req, res, pathname, query) {
     // Habilitar CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Origin': '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    
+
     if (req.method === 'OPTIONS') {
         res.writeHead(200);
         res.end();
         return;
     }
-    
-    // POST /api/register - Registrar/autenticar usuário
-    if (pathname === '/api/register' && req.method === 'POST') {
+
+    // ===================================================
+    // POST /register - Registrar/autenticar usuário
+    // ===================================================
+    if (pathname === '/register' && req.method === 'POST') {
         parseBody(req, (err, data) => {
-            if (err || !data.username || !data.password) {
+            if (err || !data.nick || !data.password) {
                 return sendJSON(res, 400, { error: 'Invalid request' });
             }
-            
-            const result = dataManager.registerUser(data.username, data.password);
-            
+
+            console.log('📝 Register:', data.nick);
+
+            const result = dataManager.registerUser(data.nick, data.password);
+
             if (result.success) {
                 sendJSON(res, 200, {
-                    success: true,
-                    username: result.user.username,
-                    points: result.user.points,
-                    wins: result.user.wins,
-                    losses: result.user.losses
+                    nick: result.user.nick,
+                    victories: result.user.victories,
+                    games: result.user.games
                 });
             } else {
                 sendJSON(res, 401, { error: result.error });
             }
         });
     }
-    
-    // GET /api/ranking - Obter ranking
-    else if (pathname === '/api/ranking' && req.method === 'GET') {
-        const ranking = dataManager.getRanking();
-        sendJSON(res, 200, { success: true, ranking });
-    }
-    
-    // POST /api/join - Entrar na fila/jogo
-    else if (pathname === '/api/join' && req.method === 'POST') {
+
+    // ===================================================
+    // POST /ranking - Obter ranking
+    // ===================================================
+    else if (pathname === '/ranking' && req.method === 'POST') {
         parseBody(req, (err, data) => {
-            if (err || !data.username) {
+            const group = data && data.group ? data.group : 'default';
+
+            console.log('📊 Ranking solicitado, grupo:', group);
+
+            const ranking = dataManager.getRanking(group);
+            sendJSON(res, 200, ranking); // Retorna array direto
+        });
+    }
+
+    // ===================================================
+    // POST /join - Entrar na fila/jogo
+    // ===================================================
+    else if (pathname === '/join' && req.method === 'POST') {
+        parseBody(req, (err, data) => {
+            if (err || !data.nick || !data.password) {
                 return sendJSON(res, 400, { error: 'Invalid request' });
             }
-            
-            const result = gameAPI.joinGame(data.username);
+
+            const group = data.group || 'default';
+            const size = data.size || 7;
+
+            console.log('🎮 Join:', data.nick, 'grupo:', group, 'tamanho:', size);
+
+            // Verificar credenciais
+            const authResult = dataManager.authenticate(data.nick, data.password);
+            if (!authResult.success) {
+                return sendJSON(res, 401, { error: 'Invalid credentials' });
+            }
+
+            const result = gameAPI.joinGame(data.nick, group, size);
             sendJSON(res, 200, result);
         });
     }
-    
-    // POST /api/leave - Sair/desistir do jogo
-    else if (pathname === '/api/leave' && req.method === 'POST') {
+
+    // ===================================================
+    // POST /leave - Sair/desistir do jogo
+    // ===================================================
+    else if (pathname === '/leave' && req.method === 'POST') {
         parseBody(req, (err, data) => {
-            if (err || !data.username) {
+            if (err || !data.nick) {
                 return sendJSON(res, 400, { error: 'Invalid request' });
             }
-            
-            const result = gameAPI.leaveGame(data.gameId, data.username);
+
+            console.log('🚪 Leave:', data.nick, 'jogo:', data.game);
+
+            const result = gameAPI.leaveGame(data.game, data.nick);
             sendJSON(res, 200, result);
         });
     }
-    
-    // POST /api/roll - Lançar os dados
-    else if (pathname === '/api/roll' && req.method === 'POST') {
+
+    // ===================================================
+    // POST /roll - Lançar os dados
+    // ===================================================
+    else if (pathname === '/roll' && req.method === 'POST') {
         parseBody(req, (err, data) => {
-            if (err || !data.gameId || !data.username) {
+            if (err || !data.game || !data.nick) {
                 return sendJSON(res, 400, { error: 'Invalid request' });
             }
-            
-            const result = gameAPI.doRoll(data.gameId, data.username);
+
+            console.log('🎲 Roll:', data.nick, 'jogo:', data.game);
+
+            const result = gameAPI.doRoll(data.game, data.nick);
             sendJSON(res, 200, result);
         });
     }
-    
-    // POST /api/notify - Fazer jogada
-    else if (pathname === '/api/notify' && req.method === 'POST') {
+
+    // ===================================================
+    // POST /notify - Fazer jogada
+    // ===================================================
+    else if (pathname === '/notify' && req.method === 'POST') {
         parseBody(req, (err, data) => {
-            if (err || !data.gameId || !data.username || data.pieceIndex === undefined) {
+            if (err || !data.game || !data.nick || data.cell === undefined) {
                 return sendJSON(res, 400, { error: 'Invalid request' });
             }
-            
-            const result = gameAPI.doNotify(data.gameId, data.username, data.pieceIndex);
+
+            console.log('👉 Notify:', data.nick, 'célula:', data.cell);
+
+            const result = gameAPI.doNotify(data.game, data.nick, data.cell);
             sendJSON(res, 200, result);
         });
     }
-    
-    // POST /api/pass - Passar a vez
-    else if (pathname === '/api/pass' && req.method === 'POST') {
+
+    // ===================================================
+    // POST /pass - Passar a vez
+    // ===================================================
+    else if (pathname === '/pass' && req.method === 'POST') {
         parseBody(req, (err, data) => {
-            if (err || !data.gameId || !data.username) {
+            if (err || !data.game || !data.nick) {
                 return sendJSON(res, 400, { error: 'Invalid request' });
             }
-            
-            const result = gameAPI.doPass(data.gameId, data.username);
+
+            console.log('⏭️ Pass:', data.nick);
+
+            const result = gameAPI.doPass(data.game, data.nick);
             sendJSON(res, 200, result);
         });
     }
-    
-    // GET /api/update - Polling estado do jogo
-    else if (pathname.startsWith('/api/update') && req.method === 'GET') {
-        const parsedUrl = url.parse(req.url, true);
-        const { gameId, username } = parsedUrl.query;
-        
-        if (!gameId || !username) {
+
+    // ===================================================
+    // GET /update - SSE (Server-Sent Events)
+    // ===================================================
+    else if (pathname === '/update' && req.method === 'GET') {
+        const { group, nick, game } = query;
+
+        if (!group || !nick || !game) {
             return sendJSON(res, 400, { error: 'Invalid request' });
         }
-        
-        const result = gameAPI.updateGame(gameId, username);
-        sendJSON(res, 200, result);
-    }
-    
-    // POST /api/room - Criar ou entrar em sala (sistema simplificado)
-    else if (pathname === '/api/room' && req.method === 'POST') {
-        parseBody(req, (err, data) => {
-            if (err || !data.username || !data.roomPassword) {
-                return sendJSON(res, 400, { error: 'Invalid request' });
+
+        console.log('🔄 SSE iniciado:', nick, 'jogo:', game);
+
+        // Configurar SSE
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*'
+        });
+
+        // Enviar estado inicial
+        const initialState = gameAPI.updateGame(game, nick);
+        res.write(`data: ${JSON.stringify(initialState)}\n\n`);
+
+        // Polling a cada 2 segundos
+        const interval = setInterval(() => {
+            try {
+                const gameState = gameAPI.updateGame(game, nick);
+                res.write(`data: ${JSON.stringify(gameState)}\n\n`);
+
+                // Se jogo terminou, parar polling
+                if (gameState.winner) {
+                    clearInterval(interval);
+                }
+            } catch (error) {
+                console.error('❌ Erro no SSE:', error);
+                clearInterval(interval);
             }
-            
-            const result = gameAPI.roomGame(data.username, data.roomPassword);
-            sendJSON(res, 200, result);
+        }, 2000);
+
+        // Limpar quando conexão fechar
+        req.on('close', () => {
+            console.log('🛑 SSE fechado:', nick);
+            clearInterval(interval);
         });
     }
-    
+
+    // ===================================================
     // Rota não encontrada
+    // ===================================================
     else {
         sendJSON(res, 404, { error: 'API endpoint not found' });
     }
 }
 
-// Criar servidor HTTP
+// ===================================================
+// CRIAR SERVIDOR HTTP
+// ===================================================
 const server = http.createServer((req, res) => {
-    const parsedUrl = url.parse(req.url);
+    const parsedUrl = url.parse(req.url, true);
     const pathname = parsedUrl.pathname;
-    
-   if (
-       pathname.startsWith('/api/') ||
-       pathname === '/update' ||
-       pathname === '/register' ||
-       pathname === '/ranking'
-   ) {
-       handleAPIRequest(req, res, pathname);
-   }
+    const query = parsedUrl.query;
 
+    // Rotas de API
+    if (pathname.match(/^\/(register|ranking|join|leave|roll|notify|pass|update)$/)) {
+        handleAPIRequest(req, res, pathname, query);
+    }
     // Arquivos estáticos
     else {
         let filePath = path.join(PUBLIC_DIR, pathname === '/' ? 'index.html' : pathname);
-        
+
         // Prevenir path traversal
         if (!filePath.startsWith(PUBLIC_DIR)) {
             res.writeHead(403, { 'Content-Type': 'text/plain' });
             res.end('403 Forbidden');
             return;
         }
-        
+
         serveStaticFile(filePath, res);
     }
 });
 
-// Iniciar servidor
+// ===================================================
+// INICIAR SERVIDOR
+// ===================================================
 server.listen(PORT, () => {
-    console.log(`🎲 TÂB Server running at http://localhost:${PORT}/`);
-    console.log(`📁 Serving static files from: ${PUBLIC_DIR}`);
-    console.log(`🎮 API endpoints available at: http://localhost:${PORT}/api/`);
+    console.log('╔════════════════════════════════════════════════╗');
+    console.log('║     🎲 TÂB Server - Entrega 3                 ║');
+    console.log('╠════════════════════════════════════════════════╣');
+    console.log(`║  🌐 URL: http://localhost:${PORT}/              ║`);
+    console.log(`║  📁 Arquivos: ${PUBLIC_DIR.substring(0, 25).padEnd(25)} ║`);
+    console.log(`║  🎮 API: Compatível com API oficial           ║`);
+    console.log('╚════════════════════════════════════════════════╝');
 });
 
-// Tratamento de erros
+// ===================================================
+// TRATAMENTO DE ERROS
+// ===================================================
 server.on('error', (error) => {
     if (error.code === 'EADDRINUSE') {
-        console.error(`❌ Port ${PORT} is already in use`);
+        console.error(`❌ Porta ${PORT} já está em uso!`);
+        console.error('💡 Dica: Mude a porta no topo do arquivo ou encerre o processo.');
     } else {
-        console.error('❌ Server error:', error);
+        console.error('❌ Erro no servidor:', error);
     }
     process.exit(1);
 });
 
 process.on('SIGINT', () => {
-    console.log('\n👋 Shutting down server...');
+    console.log('\n👋 Encerrando servidor...');
     server.close(() => {
-        console.log('✅ Server closed');
+        console.log('✅ Servidor encerrado');
         process.exit(0);
     });
 });

@@ -1,4 +1,3 @@
-
 // Estado do jogo online
 let onlineGameState = {
     isOnline: false,
@@ -8,7 +7,9 @@ let onlineGameState = {
     lastUpdate: null
 };
 
-
+// ===================================================
+// INICIAR JOGO ONLINE
+// ===================================================
 window.startOnlineGame = async function(boardSize = 7) {
     if (!window.loginManager || !window.loginManager.nick) {
         alert('Faça login primeiro!');
@@ -23,7 +24,6 @@ window.startOnlineGame = async function(boardSize = 7) {
         playBtn.style.pointerEvents = 'none';
         playBtn.style.opacity = '0.5';
     }
-
 
     const result = await window.loginManager.joinGame(boardSize);
 
@@ -41,6 +41,7 @@ window.startOnlineGame = async function(boardSize = 7) {
         updateMessage('Aguardando oponente... Tentando novamente em 3 segundos.');
 
         const checkInterval = setInterval(async () => {
+            console.log('🔄 Tentando matchmaking novamente...');
             const checkResult = await window.loginManager.joinGame(boardSize);
 
             if (checkResult.success && checkResult.status === 'matched') {
@@ -54,6 +55,8 @@ window.startOnlineGame = async function(boardSize = 7) {
                 initOnlineBoard(boardSize);
 
                 updateMessage('Oponente encontrado! Jogo iniciado. Aguardando estado do servidor...');
+
+                console.log('✅ Match encontrado! Game ID:', checkResult.gameId);
             }
         }, 3000);
 
@@ -67,10 +70,14 @@ window.startOnlineGame = async function(boardSize = 7) {
         initOnlineBoard(boardSize);
 
         updateMessage('Jogo iniciado! Aguardando estado do servidor...');
+
+        console.log('✅ Jogo iniciado imediatamente! Game ID:', result.gameId);
     }
 };
 
-
+// ===================================================
+// INICIALIZAR TABULEIRO ONLINE
+// ===================================================
 function initOnlineBoard(boardSize) {
     const board = document.getElementById('game-board');
     board.innerHTML = '';
@@ -104,13 +111,16 @@ function initOnlineBoard(boardSize) {
     if (overlay) {
         overlay.classList.add('hidden');
     }
+
+    console.log('✅ Tabuleiro online criado:', boardSize + 'x4');
 }
 
-// ==================================================
-// SEGUNDA ENTREGA API OFICIAL
-// Configurar handlers de eventos para modo online
-// ==================================================
+// ===================================================
+// CONFIGURAR HANDLERS DE EVENTOS
+// ===================================================
 function setupOnlineHandlers() {
+    console.log('🎮 Configurando handlers de jogo online...');
+
     // Handler para lançar dados
     const rollButton = document.getElementById('roll-dice');
     if (rollButton) {
@@ -126,10 +136,6 @@ function setupOnlineHandlers() {
             newRollButton.disabled = true;
             updateMessage('Lançando dados...');
 
-            // ==================================================
-            // SEGUNDA ENTREGA API OFICIAL
-            // Chamada: POST /roll
-            // ==================================================
             const result = await window.loginManager.doRoll();
 
             if (result.success) {
@@ -157,7 +163,6 @@ function setupOnlineHandlers() {
                 return;
             }
 
-
             const result = await window.loginManager.doPass();
 
             if (result.success) {
@@ -184,10 +189,6 @@ function setupOnlineHandlers() {
                 return;
             }
 
-            // ==================================================
-            // SEGUNDA ENTREGA API OFICIAL
-            // Chamada: POST /leave
-            // ==================================================
             await window.loginManager.leaveGame();
             updateMessage('Você desistiu do jogo.');
 
@@ -205,6 +206,7 @@ function setupOnlineHandlers() {
 
             const cellIndex = parseInt(cell.dataset.index);
 
+            console.log('👉 Clique na célula:', cellIndex);
 
             const result = await window.loginManager.doNotify(cellIndex);
 
@@ -215,9 +217,13 @@ function setupOnlineHandlers() {
             }
         });
     });
+
+    console.log('✅ Handlers configurados');
 }
 
-
+// ===================================================
+// RECEBER UPDATES DO SERVIDOR (Callback global)
+// ===================================================
 window.onGameUpdate = function(serverState) {
     if (!onlineGameState.isOnline) return;
 
@@ -225,46 +231,72 @@ window.onGameUpdate = function(serverState) {
 
     // Verificar se retornou erro
     if (serverState.error) {
-        console.error('Erro no update:', serverState.error);
+        console.error('❌ Erro no update:', serverState.error);
         return;
     }
 
-    // Atualizar estado local
+    // Atualizar timestamp
     onlineGameState.lastUpdate = Date.now();
 
-    // Extrair informações do estado do servidor
-    // NOTA: A estrutura exata depende da resposta da API oficial
-    // Adaptar conforme documentação fornecida
+    // ===================================================
+    // EXTRAIR INFORMAÇÕES DO ESTADO
+    // ===================================================
 
+    // Formato API oficial vs backend próprio
     const currentTurn = serverState.turn || serverState.currentPlayer;
-    const diceValue = serverState.dice || serverState.diceValue || 0;
+    const diceValue = serverState.dice !== undefined ? serverState.dice : (serverState.diceValue || 0);
     const pieces = serverState.pieces || { red: [], blue: [] };
     const winner = serverState.winner;
+    const players = serverState.players || [];
 
-    // Determinar minha cor
-    if (!onlineGameState.myColor && serverState.players) {
-        // Assumir que o primeiro jogador é quem fez join primeiro
+    // ===================================================
+    // DETERMINAR MINHA COR (CORRIGIDO!)
+    // ===================================================
+    if (!onlineGameState.myColor) {
         const myNick = window.loginManager.nick;
-        if (serverState.players[0] === myNick) {
-            onlineGameState.myColor = 'blue'; // Primeiro jogador = azul
+
+        if (players && players.length >= 2) {
+            // API oficial retorna array: [player1, player2]
+            // player1 (índice 0) = AZUL (primeiro a entrar)
+            // player2 (índice 1) = VERMELHO (segundo a entrar)
+
+            if (players[0] === myNick) {
+                onlineGameState.myColor = 'blue';
+                console.log('🎨 Você é AZUL (primeiro jogador)');
+            } else if (players[1] === myNick) {
+                onlineGameState.myColor = 'red';
+                console.log('🎨 Você é VERMELHO (segundo jogador)');
+            } else {
+                console.warn('⚠️ Nick não encontrado nos players, assumindo azul');
+                onlineGameState.myColor = 'blue';
+            }
         } else {
-            onlineGameState.myColor = 'red'; // Segundo jogador = vermelho
+            // Fallback se players não vier no formato esperado
+            console.warn('⚠️ Players array não disponível, assumindo azul');
+            onlineGameState.myColor = 'blue';
         }
     }
 
-    // Atualizar tabuleiro visual
+    // ===================================================
+    // ATUALIZAR TABULEIRO VISUAL
+    // ===================================================
     updateBoardFromServer(pieces);
 
-    // Atualizar mensagem de turno
-    const isMyTurn = currentTurn === onlineGameState.myColor ||
-                     (serverState.players && serverState.players[0] === window.loginManager.nick && currentTurn === 'blue') ||
-                     (serverState.players && serverState.players[1] === window.loginManager.nick && currentTurn === 'red');
+    // ===================================================
+    // DETERMINAR SE É MINHA VEZ
+    // ===================================================
+    const isMyTurn = currentTurn === onlineGameState.myColor;
 
+    // ===================================================
+    // VERIFICAR FIM DE JOGO
+    // ===================================================
     if (winner) {
-        // Jogo terminou
         const didIWin = winner === onlineGameState.myColor;
 
-        window.loginManager.stopPolling();
+        // Parar polling/SSE
+        if (window.loginManager) {
+            window.loginManager.stopUpdateStream();
+        }
 
         if (didIWin) {
             updateMessage(`🎉 Você venceu! Parabéns!`);
@@ -281,29 +313,36 @@ window.onGameUpdate = function(serverState) {
         return;
     }
 
-    // Atualizar UI de controles
+    // ===================================================
+    // ATUALIZAR UI DE CONTROLES
+    // ===================================================
     const rollButton = document.getElementById('roll-dice');
     if (rollButton) {
+        // Habilita dados apenas se:
+        // 1. É minha vez
+        // 2. Dados ainda não foram lançados (diceValue === 0)
         rollButton.disabled = !isMyTurn || diceValue > 0;
     }
 
-    // Mensagem de status
+    // ===================================================
+    // MENSAGEM DE STATUS
+    // ===================================================
     if (isMyTurn) {
         if (diceValue === 0) {
-            updateMessage('Sua vez! Lance os dados.');
+            updateMessage('🎲 Sua vez! Lance os dados.');
         } else {
-            updateMessage(`Sua vez! Dados: ${diceValue}. Selecione uma peça para mover.`);
+            updateMessage(`🎯 Sua vez! Dados: ${diceValue}. Selecione uma peça para mover.`);
             highlightSelectablePieces();
         }
     } else {
-        updateMessage('Turno do oponente. Aguarde...');
+        const opponentColor = onlineGameState.myColor === 'red' ? 'Azul' : 'Vermelho';
+        updateMessage(`⏳ Turno do oponente (${opponentColor}). Aguarde...`);
     }
 };
 
-// ==================================================
-// SEGUNDA ENTREGA API OFICIAL
-// Atualizar visualização do tabuleiro baseado no estado do servidor
-// ==================================================
+// ===================================================
+// ATUALIZAR VISUALIZAÇÃO DO TABULEIRO
+// ===================================================
 function updateBoardFromServer(pieces) {
     const cells = document.querySelectorAll('.cell');
     const boardSize = onlineGameState.boardSize;
@@ -314,7 +353,9 @@ function updateBoardFromServer(pieces) {
         cell.classList.remove('has-piece', 'selectable', 'possible-move', 'capture-move', 'selected');
     });
 
-    // Colocar peças vermelhas
+    // ===================================================
+    // COLOCAR PEÇAS VERMELHAS
+    // ===================================================
     if (pieces.red && Array.isArray(pieces.red)) {
         pieces.red.forEach((piece, index) => {
             const cellIndex = piece.row * boardSize + piece.col;
@@ -340,7 +381,9 @@ function updateBoardFromServer(pieces) {
         });
     }
 
-    // Colocar peças azuis
+    // ===================================================
+    // COLOCAR PEÇAS AZUIS
+    // ===================================================
     if (pieces.blue && Array.isArray(pieces.blue)) {
         pieces.blue.forEach((piece, index) => {
             const cellIndex = piece.row * boardSize + piece.col;
@@ -367,13 +410,16 @@ function updateBoardFromServer(pieces) {
     }
 }
 
-
+// ===================================================
+// DESTACAR PEÇAS SELECIONÁVEIS
+// ===================================================
 function highlightSelectablePieces() {
     const cells = document.querySelectorAll('.cell');
 
     cells.forEach(cell => {
         cell.classList.remove('selectable');
 
+        // Destacar apenas peças da minha cor
         const piece = cell.querySelector(`.${onlineGameState.myColor}-piece`);
         if (piece) {
             cell.classList.add('selectable');
@@ -381,12 +427,15 @@ function highlightSelectablePieces() {
     });
 }
 
-// Função auxiliar para atualizar mensagens
+// ===================================================
+// FUNÇÃO AUXILIAR: ATUALIZAR MENSAGENS
+// ===================================================
 function updateMessage(text) {
     const messageElement = document.querySelector('.message p');
     if (messageElement) {
         messageElement.textContent = text;
     }
+    console.log('💬', text);
 }
 
-console.log('✅ SEGUNDA ENTREGA - Online Game Integration carregado (API Oficial)');
+console.log('✅ Online Game Integration carregado - Compatível com Entrega 2 e 3');

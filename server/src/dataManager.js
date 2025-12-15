@@ -1,4 +1,6 @@
-// dataManager.js - Gestão de dados persistentes em JSON
+// server/src/dataManager.js - Gestão de dados CORRIGIDA
+// Suporte a grupos e formato compatível com API oficial
+
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -6,18 +8,20 @@ const crypto = require('crypto');
 const DATA_DIR = path.join(__dirname, '../../data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const GAMES_FILE = path.join(DATA_DIR, 'games.json');
-const RANKINGS_FILE = path.join(DATA_DIR, 'rankings.json');
-const QUEUE_FILE = path.join(DATA_DIR, 'queue.json');
-const ROOMS_FILE = path.join(DATA_DIR, 'rooms.json');
+const QUEUES_FILE = path.join(DATA_DIR, 'queues.json'); // Por grupo
 
-// Garante que o diretório de dados existe
+// ===================================================
+// GARANTIR DIRETÓRIO DE DADOS
+// ===================================================
 function ensureDataDir() {
     if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
     }
 }
 
-// Carrega dados de um arquivo JSON
+// ===================================================
+// CARREGAR DADOS
+// ===================================================
 function loadData(filePath, defaultValue = {}) {
     ensureDataDir();
     try {
@@ -26,37 +30,41 @@ function loadData(filePath, defaultValue = {}) {
             return JSON.parse(data);
         }
     } catch (error) {
-        console.error(`Error loading ${filePath}:`, error.message);
+        console.error(`❌ Erro ao carregar ${filePath}:`, error.message);
     }
     return defaultValue;
 }
 
-// Salva dados em um arquivo JSON
+// ===================================================
+// SALVAR DADOS
+// ===================================================
 function saveData(filePath, data) {
     ensureDataDir();
     try {
         fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
         return true;
     } catch (error) {
-        console.error(`Error saving ${filePath}:`, error.message);
+        console.error(`❌ Erro ao salvar ${filePath}:`, error.message);
         return false;
     }
 }
 
-// Hash SHA-256 para passwords
+// ===================================================
+// HASHING
+// ===================================================
 function hashPassword(password) {
     return crypto.createHash('sha256').update(password).digest('hex');
 }
 
-// Hash MD5 para IDs de jogo
 function generateGameId(player1, player2) {
     const timestamp = Date.now();
     const data = `${player1}-${player2}-${timestamp}`;
-    return crypto.createHash('md5').update(data).digest('hex');
+    return crypto.createHash('md5').update(data).digest('hex').substring(0, 12);
 }
 
-// === USUÁRIOS ===
-
+// ===================================================
+// USUÁRIOS
+// ===================================================
 function getUsers() {
     return loadData(USERS_FILE, {});
 }
@@ -65,70 +73,109 @@ function saveUsers(users) {
     return saveData(USERS_FILE, users);
 }
 
-function registerUser(username, password) {
+function registerUser(nick, password) {
     const users = getUsers();
-    
-    if (users[username]) {
+
+    if (users[nick]) {
         // Usuário já existe - verificar password
-        if (users[username].password === hashPassword(password)) {
-            return { success: true, user: users[username] };
+        if (users[nick].password === hashPassword(password)) {
+            console.log('✅ Login:', nick);
+            return { success: true, user: users[nick] };
         } else {
+            console.log('❌ Senha incorreta:', nick);
             return { success: false, error: 'Invalid credentials' };
         }
     }
-    
+
     // Criar novo usuário
     const newUser = {
-        username,
+        nick,
         password: hashPassword(password),
-        wins: 0,
-        losses: 0,
-        points: 0,
-        createdAt: Date.now()
+        victories: 0,
+        games: 0,
+        groups: {} // Estatísticas por grupo
     };
-    
-    users[username] = newUser;
+
+    users[nick] = newUser;
     saveUsers(users);
-    
+
+    console.log('✅ Novo usuário:', nick);
     return { success: true, user: newUser };
 }
 
-function updateUserStats(username, won) {
+function authenticate(nick, password) {
     const users = getUsers();
-    if (!users[username]) return false;
-    
-    if (won) {
-        users[username].wins++;
-        users[username].points += 100;
-    } else {
-        users[username].losses++;
-        users[username].points = Math.max(0, users[username].points - 50);
+
+    if (!users[nick]) {
+        return { success: false, error: 'User not found' };
     }
-    
+
+    if (users[nick].password !== hashPassword(password)) {
+        return { success: false, error: 'Invalid password' };
+    }
+
+    return { success: true };
+}
+
+function updateUserStats(nick, won, group = 'default') {
+    const users = getUsers();
+    if (!users[nick]) return false;
+
+    // Atualizar estatísticas globais
+    users[nick].games++;
+    if (won) {
+        users[nick].victories++;
+    }
+
+    // Atualizar estatísticas por grupo
+    if (!users[nick].groups[group]) {
+        users[nick].groups[group] = { victories: 0, games: 0 };
+    }
+
+    users[nick].groups[group].games++;
+    if (won) {
+        users[nick].groups[group].victories++;
+    }
+
     saveUsers(users);
+
+    console.log('📊 Stats:', nick, won ? 'vitória' : 'derrota', 'grupo:', group);
     return true;
 }
 
-// === RANKINGS ===
-
-function getRanking() {
+// ===================================================
+// RANKINGS (POR GRUPO)
+// ===================================================
+function getRanking(group = 'default') {
     const users = getUsers();
+
+    // Filtrar usuários do grupo e ordenar por vitórias
     const ranking = Object.values(users)
-        .sort((a, b) => b.points - a.points)
-        .slice(0, 10)
-        .map((user, index) => ({
-            rank: index + 1,
-            username: user.username,
-            points: user.points,
-            wins: user.wins,
-            losses: user.losses
-        }));
-    
+        .filter(user => user.groups && user.groups[group])
+        .map(user => ({
+            nick: user.nick,
+            victories: user.groups[group].victories,
+            games: user.groups[group].games
+        }))
+        .sort((a, b) => {
+            // Ordenar por vitórias, depois por taxa de vitória
+            if (b.victories !== a.victories) {
+                return b.victories - a.victories;
+            }
+            const winRateA = a.games > 0 ? a.victories / a.games : 0;
+            const winRateB = b.games > 0 ? b.victories / b.games : 0;
+            return winRateB - winRateA;
+        });
+
+    console.log('📊 Ranking grupo', group + ':', ranking.length, 'jogadores');
+
+    // API oficial retorna array direto
     return ranking;
 }
 
-// === JOGOS ===
-
+// ===================================================
+// JOGOS
+// ===================================================
 function getGames() {
     return loadData(GAMES_FILE, {});
 }
@@ -137,14 +184,14 @@ function saveGames(games) {
     return saveData(GAMES_FILE, games);
 }
 
-function createGame(player1, player2, boardSize = 7) {
+function createGame(player1, player2, boardSize, group) {
     const gameId = generateGameId(player1, player2);
     const games = getGames();
-    
+
     // Inicializar peças
     const redPieces = [];
     const bluePieces = [];
-    
+
     for (let col = 0; col < boardSize; col++) {
         redPieces.push({
             row: 0,
@@ -153,7 +200,7 @@ function createGame(player1, player2, boardSize = 7) {
             inEnemyTerritory: false,
             hasCompletedEnemyTerritory: false
         });
-        
+
         bluePieces.push({
             row: 3,
             col: col,
@@ -162,17 +209,14 @@ function createGame(player1, player2, boardSize = 7) {
             hasCompletedEnemyTerritory: false
         });
     }
-    
+
     games[gameId] = {
         id: gameId,
-        player1,
-        player2,
-        boardSize,
-        // CORREÇÃO: player1 é AZUL e joga primeiro
-        currentPlayer: 'blue',
-        diceValue: 0,
-        diceRolled: false,
-        diceUsed: false,
+        players: [player1, player2], // player1 = AZUL, player2 = VERMELHO
+        group,
+        size: boardSize,
+        turn: 'blue', // Azul (player1) começa
+        dice: 0,
         pieces: {
             red: redPieces,
             blue: bluePieces
@@ -182,8 +226,11 @@ function createGame(player1, player2, boardSize = 7) {
         createdAt: Date.now(),
         lastUpdate: Date.now()
     };
-    
+
     saveGames(games);
+
+    console.log('🎮 Jogo criado:', gameId, '|', player1, '(azul) vs', player2, '(vermelho)');
+
     return games[gameId];
 }
 
@@ -195,13 +242,13 @@ function getGame(gameId) {
 function updateGame(gameId, updates) {
     const games = getGames();
     if (!games[gameId]) return null;
-    
+
     games[gameId] = {
         ...games[gameId],
         ...updates,
         lastUpdate: Date.now()
     };
-    
+
     saveGames(games);
     return games[gameId];
 }
@@ -216,93 +263,118 @@ function deleteGame(gameId) {
     return false;
 }
 
-// === FILA DE ESPERA ===
-
-function getQueue() {
-    return loadData(QUEUE_FILE, []);
+// ===================================================
+// FILAS DE ESPERA (POR GRUPO)
+// ===================================================
+function getQueues() {
+    return loadData(QUEUES_FILE, {});
 }
 
-function saveQueue(queue) {
-    return saveData(QUEUE_FILE, queue);
+function saveQueues(queues) {
+    return saveData(QUEUES_FILE, queues);
 }
 
-function addToQueue(username) {
-    const queue = getQueue();
-    
+function addToQueue(nick, group, boardSize) {
+    const queues = getQueues();
+
+    if (!queues[group]) {
+        queues[group] = [];
+    }
+
     // Verificar se já está na fila
-    if (queue.find(item => item.username === username)) {
+    if (queues[group].find(item => item.nick === nick)) {
+        console.log('⚠️ Já na fila:', nick, 'grupo:', group);
         return { success: false, error: 'Already in queue' };
     }
-    
-    queue.push({
-        username,
+
+    queues[group].push({
+        nick,
+        boardSize,
         joinedAt: Date.now()
     });
-    
-    saveQueue(queue);
-    return { success: true, position: queue.length };
+
+    saveQueues(queues);
+
+    console.log('➕ Fila:', nick, 'grupo:', group, '| Tamanho fila:', queues[group].length);
+
+    return { success: true, position: queues[group].length };
 }
 
-function removeFromQueue(username) {
-    let queue = getQueue();
-    queue = queue.filter(item => item.username !== username);
-    saveQueue(queue);
-    return true;
+function removeFromQueue(nick) {
+    const queues = getQueues();
+    let removed = false;
+
+    // Remover de todas as filas
+    for (const group in queues) {
+        const before = queues[group].length;
+        queues[group] = queues[group].filter(item => item.nick !== nick);
+        if (queues[group].length < before) {
+            removed = true;
+            console.log('➖ Removido da fila:', nick, 'grupo:', group);
+        }
+    }
+
+    saveQueues(queues);
+    return removed;
 }
 
-function matchPlayers() {
-    const queue = getQueue();
-    
+function matchPlayers(group) {
+    const queues = getQueues();
+
+    if (!queues[group] || queues[group].length < 2) {
+        return null;
+    }
+
+    // Tentar fazer match com mesmo tamanho de tabuleiro
+    const queue = queues[group];
+
+    for (let i = 0; i < queue.length - 1; i++) {
+        for (let j = i + 1; j < queue.length; j++) {
+            if (queue[i].boardSize === queue[j].boardSize) {
+                const player1 = queue[i];
+                const player2 = queue[j];
+
+                // Remover da fila
+                queue.splice(j, 1); // Remove j primeiro (índice maior)
+                queue.splice(i, 1);
+
+                saveQueues(queues);
+
+                console.log('🤝 Match:', player1.nick, 'vs', player2.nick, '| Tamanho:', player1.boardSize);
+
+                return {
+                    player1: player1.nick,
+                    player2: player2.nick,
+                    boardSize: player1.boardSize
+                };
+            }
+        }
+    }
+
+    // Se não houver match com mesmo tamanho, pegar os 2 primeiros
     if (queue.length >= 2) {
         const player1 = queue.shift();
         const player2 = queue.shift();
-        saveQueue(queue);
-        
+
+        saveQueues(queues);
+
+        console.log('🤝 Match forçado:', player1.nick, 'vs', player2.nick);
+
         return {
-            player1: player1.username,
-            player2: player2.username
+            player1: player1.nick,
+            player2: player2.nick,
+            boardSize: player1.boardSize // Usa tamanho do primeiro
         };
     }
-    
+
     return null;
-}
-
-// === SALAS ===
-
-function getRooms() {
-    return loadData(ROOMS_FILE, {});
-}
-
-function saveRooms(rooms) {
-    return saveData(ROOMS_FILE, rooms);
-}
-
-function getRoom(roomKey) {
-    const rooms = getRooms();
-    return rooms[roomKey] || null;
-}
-
-function saveRoom(roomKey, roomData) {
-    const rooms = getRooms();
-    rooms[roomKey] = roomData;
-    saveRooms(rooms);
-    return roomData;
-}
-
-function deleteRoom(roomKey) {
-    const rooms = getRooms();
-    if (rooms[roomKey]) {
-        delete rooms[roomKey];
-        saveRooms(rooms);
-        return true;
-    }
-    return false;
 }
 
 module.exports = {
     hashPassword,
     generateGameId,
     registerUser,
+    authenticate,
     updateUserStats,
     getRanking,
     createGame,
@@ -312,9 +384,5 @@ module.exports = {
     addToQueue,
     removeFromQueue,
     matchPlayers,
-    getUsers,
-    getRoom,
-    saveRoom,
-    deleteRoom,
-    getRooms
+    getUsers
 };

@@ -1,16 +1,19 @@
 {
-  "name": "twlucas-tab-online",
-  "version": "1.0.0",
-  "description": "TÂB - Traditional Board Game with Online Multiplayer",
+  "name": "tab-jogo-online",
+  "version": "3.0.0",
+  "description": "TÂB - Jogo de Tabuleiro Tradicional com Multiplayer Online (Entrega 2 e 3)",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node server/index.js"
+    "dev": "node server/index.js",
+    "test": "echo \"Servidor rodando em http://localhost:8100\" && npm start"
   },
-  "keywords": ["tab", "board-game", "multiplayer", "game"],
+  "keywords": ["tab", "board-game", "multiplayer", "game", "entrega-2", "entrega-3"],
   "author": "TWlucas",
   "license": "MIT",
   "engines": {
     "node": ">=14.0.0"
-  }
+  },
+  "dependencies": {},
+  "devDependencies": {}
 }
