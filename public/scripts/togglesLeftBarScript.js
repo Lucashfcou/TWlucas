@@ -1,4 +1,8 @@
-// togglesLeftBarScript.js - Sistema de controle do painel lateral para Regras e Classificação
+// ==================================================
+// SEGUNDA ENTREGA API OFICIAL
+// togglesLeftBarScript.js - Sistema de controle do painel lateral
+// Adaptado para carregar rankings do servidor oficial
+// ==================================================
 
 (function () {
     const leftBar = document.getElementById('left-bar');
@@ -10,7 +14,7 @@
     // Fecha todos os painéis
     function closeAll() {
         [rulesContent, classContent].forEach(content => content.setAttribute('hidden', ''));
-        [rulesToggle, classToggle]. forEach(btn => btn.setAttribute('aria-expanded', 'false'));
+        [rulesToggle, classToggle].forEach(btn => btn.setAttribute('aria-expanded', 'false'));
         leftBar.classList.add('collapsed');
         leftBar.setAttribute('aria-hidden', 'true');
     }
@@ -32,10 +36,13 @@
             if (focusTarget) focusTarget.focus();
         } else if (type === 'class') {
             classContent.removeAttribute('hidden');
-            classToggle. setAttribute('aria-expanded', 'true');
+            classToggle.setAttribute('aria-expanded', 'true');
             rulesToggle.setAttribute('aria-expanded', 'false');
 
-            // Atualiza rankings ao abrir
+            // ==================================================
+            // SEGUNDA ENTREGA API OFICIAL
+            // Atualiza rankings do servidor ao abrir
+            // ==================================================
             updateRankingsDisplay();
 
             const focusTarget = classContent.querySelector('h2, h3, a, input');
@@ -53,8 +60,11 @@
         else openPanel(type);
     }
 
-    // Atualiza exibição de rankings
-    function updateRankingsDisplay() {
+    // ==================================================
+    // SEGUNDA ENTREGA API OFICIAL
+    // Atualiza exibição de rankings do servidor
+    // ==================================================
+    async function updateRankingsDisplay() {
         if (!window.RankingSystem) {
             console.warn('Ranking System not loaded');
             return;
@@ -63,40 +73,11 @@
         const rankingsList = document.getElementById('class-table-items');
         if (!rankingsList) return;
 
-        const topPlayers = window.RankingSystem.getTopRankings(10);
-        const currentUser = window.RankingSystem. getCurrentUser();
+        // Mostrar loading
+        rankingsList.innerHTML = '<li style="list-style: none; text-align: center; color: #666;">Carregando rankings...</li>';
 
-        if (topPlayers.length === 0) {
-            rankingsList.innerHTML = `
-                <li style="list-style: none; text-align: center; color: var(--c3-color); opacity: 0.7;">
-                    Nenhum jogador registrado ainda. <br>
-                    <small>Faça login e jogue para aparecer no ranking!</small>
-                </li>
-            `;
-            return;
-        }
-
-        rankingsList.innerHTML = topPlayers.map((player, index) => {
-            const position = index + 1;
-            let itemClass = 'remaining-place';
-
-            if (position === 1) itemClass = 'first-place';
-            else if (position === 2) itemClass = 'second-place';
-            else if (position === 3) itemClass = 'third-place';
-
-            const isCurrentUser = currentUser && player.username === currentUser;
-            const highlightClass = isCurrentUser ? ' current-user' : '';
-
-            return `
-                <li id="${itemClass}" class="${itemClass}${highlightClass}">
-                    <strong>${player.username}</strong> - ${player.points}pts
-                    <br>
-                    <small style="opacity: 0.8; font-size: 85%;">
-                        ${player.wins}V / ${player.losses}D | ${player.winRate}% vitórias
-                    </small>
-                </li>
-            `;
-        }).join('');
+        // Chamar função do RankingSystem que busca do servidor
+        await window.RankingSystem.updateRankingsDisplay();
     }
 
     // Registra eventos dos botões
@@ -111,4 +92,5 @@
         updateRankings: updateRankingsDisplay
     };
 
+    console.log('✅ SEGUNDA ENTREGA - Left Bar Panel carregado (API Oficial)');
 })();

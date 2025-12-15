@@ -1,226 +1,162 @@
-// rankingSystem.js - Sistema de classificações e rankings locais
-
-/**
- * Sistema de gerenciamento de rankings e estatísticas de jogadores
- * Utiliza localStorage para persistência de dados locais
- * Estrutura de dados:
- * - username: nome do jogador
- * - wins: total de vitórias
- * - losses: total de derrotas
- * - points: pontuação total calculada
- * - gamesPlayed: total de jogos
- * - winRate: taxa de vitória (%)
- * - lastPlayed: timestamp da última partida
- */
+// ==================================================
+// SEGUNDA ENTREGA API OFICIAL
+// rankingSystem.js - Sistema de rankings usando servidor oficial
+// Comunicação via POST /ranking
+// ==================================================
 
 (function() {
     'use strict';
 
-    const STORAGE_KEY = 'tab_game_rankings';
-    const CURRENT_USER_KEY = 'tab_current_user';
+    // ==================================================
+    // SEGUNDA ENTREGA API OFICIAL
+    // Rankings agora vêm do servidor, não do localStorage
+    // ==================================================
 
     /**
-     * Sistema de pontuação:
-     * - Vitória: +100 pontos
-     * - Vitória contra IA difícil: +150 pontos
-     * - Vitória contra IA médio: +100 pontos
-     * - Vitória contra IA fácil: +75 pontos
-     * - Derrota: -10 pontos (mínimo 0)
-     * - Desistência: -25 pontos (mínimo 0)
+     * Carrega rankings do servidor oficial
      */
-    const POINTS = {
-        WIN_HARD: 150,
-        WIN_MEDIUM:  100,
-        WIN_EASY: 75,
-        LOSS:  -10,
-        FORFEIT: -25
-    };
+    async function loadRankingsFromServer() {
+        if (!window.loginManager) {
+            console.warn('LoginManager not available');
+            return [];
+        }
 
-    /**
-     * Carrega dados de rankings do localStorage
-     */
-    function loadRankings() {
-        try {
-            const data = localStorage. getItem(STORAGE_KEY);
-            return data ? JSON.parse(data) : [];
-        } catch (error) {
-            console.error('Error loading rankings:', error);
+        // ==================================================
+        // SEGUNDA ENTREGA API OFICIAL
+        // Chamada: POST /ranking
+        // ==================================================
+        const result = await window.loginManager.getRanking();
+
+        if (result.success) {
+            return result.ranking;
+        } else {
+            console.error('Error loading rankings:', result.error);
             return [];
         }
     }
 
     /**
-     * Salva dados de rankings no localStorage
+     * Atualiza exibição de rankings
      */
-    function saveRankings(rankings) {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(rankings));
-            return true;
-        } catch (error) {
-            console.error('Error saving rankings:', error);
-            return false;
+    async function updateRankingsDisplay() {
+        const rankingsList = document.getElementById('class-table-items');
+        if (!rankingsList) return;
+
+        rankingsList.innerHTML = '<li style="list-style: none; text-align: center; color: #666;">Carregando rankings...</li>';
+
+        const rankings = await loadRankingsFromServer();
+
+        if (rankings.length === 0) {
+            rankingsList.innerHTML = `
+                <li style="list-style: none; text-align: center; color: var(--c3-color); opacity: 0.7;">
+                    Nenhum jogador registrado ainda. <br>
+                    <small>Faça login e jogue para aparecer no ranking!</small>
+                </li>
+            `;
+            return;
         }
+
+        rankingsList.innerHTML = rankings.map((player, index) => {
+            const position = index + 1;
+            let itemClass = 'remaining-place';
+
+            if (position === 1) itemClass = 'first-place';
+            else if (position === 2) itemClass = 'second-place';
+            else if (position === 3) itemClass = 'third-place';
+
+            const currentUser = window.loginManager ? window.loginManager.nick : null;
+            const isCurrentUser = currentUser && player.nick === currentUser;
+            const highlightClass = isCurrentUser ? ' current-user' : '';
+
+            // Formato: nick - vitórias/jogos
+            const victories = player.victories || 0;
+            const games = player.games || 0;
+            const winRate = games > 0 ? ((victories / games) * 100).toFixed(1) : '0.0';
+
+            return `
+                <li id="${itemClass}" class="${itemClass}${highlightClass}">
+                    <strong>${player.nick}</strong> - ${victories}V / ${games}J
+                    <br>
+                    <small style="opacity: 0.8; font-size: 85%;">
+                        ${winRate}% vitórias
+                    </small>
+                </li>
+            `;
+        }).join('');
     }
 
     /**
-     * Obtém ou cria perfil de jogador
+     * Obtém top rankings (compatibilidade)
      */
-    function getPlayerProfile(username) {
-        const rankings = loadRankings();
-        let player = rankings.find(p => p.username === username);
-
-        if (!player) {
-            player = {
-                username: username,
-                wins: 0,
-                losses: 0,
-                points: 0,
-                gamesPlayed: 0,
-                winRate: 0,
-                lastPlayed: Date.now(),
-                createdAt: Date. now()
-            };
-            rankings.push(player);
-            saveRankings(rankings);
-        }
-
-        return player;
-    }
-
-    /**
-     * Registra resultado de partida
-     */
-    function recordGameResult(username, isWin, difficulty = 'medium', isForfeit = false) {
-        const rankings = loadRankings();
-        let player = rankings.find(p => p.username === username);
-
-        if (!player) {
-            player = getPlayerProfile(username);
-        }
-
-        // Atualiza estatísticas
-        player.gamesPlayed++;
-        player. lastPlayed = Date.now();
-
-        if (isWin) {
-            player.wins++;
-            // Calcula pontos baseado na dificuldade
-            switch(difficulty. toLowerCase()) {
-                case 'hard':
-                    player.points += POINTS.WIN_HARD;
-                    break;
-                case 'medium':
-                    player.points += POINTS.WIN_MEDIUM;
-                    break;
-                case 'easy':
-                    player.points += POINTS.WIN_EASY;
-                    break;
-                default:
-                    player.points += POINTS.WIN_MEDIUM;
-            }
-        } else {
-            player.losses++;
-            // Penalidade por derrota
-            if (isForfeit) {
-                player.points = Math.max(0, player. points + POINTS.FORFEIT);
-            } else {
-                player.points = Math.max(0, player. points + POINTS.LOSS);
-            }
-        }
-
-        // Calcula taxa de vitória
-        player.winRate = player.gamesPlayed > 0
-            ? ((player.wins / player.gamesPlayed) * 100).toFixed(1)
-            : 0;
-
-        // Atualiza no array
-        const index = rankings.findIndex(p => p.username === username);
-        if (index !== -1) {
-            rankings[index] = player;
-        }
-
-        saveRankings(rankings);
-        return player;
-    }
-
-    /**
-     * Obtém rankings ordenados por pontuação
-     */
-    function getTopRankings(limit = 10) {
-        const rankings = loadRankings();
-        return rankings
-            .sort((a, b) => b.points - a.points)
-            .slice(0, limit);
+    async function getTopRankings(limit = 10) {
+        const rankings = await loadRankingsFromServer();
+        return rankings.slice(0, limit);
     }
 
     /**
      * Obtém posição do jogador no ranking
      */
-    function getPlayerRank(username) {
-        const rankings = loadRankings();
-        const sorted = rankings.sort((a, b) => b.points - a.points);
-        const index = sorted.findIndex(p => p.username === username);
+    async function getPlayerRank(nick) {
+        const rankings = await loadRankingsFromServer();
+        const index = rankings.findIndex(p => p.nick === nick);
         return index !== -1 ? index + 1 : null;
     }
 
     /**
-     * Define usuário atual
+     * Obtém perfil do jogador
      */
-    function setCurrentUser(username) {
-        if (username && username. trim()) {
-            localStorage.setItem(CURRENT_USER_KEY, username. trim());
-            return true;
+    async function getPlayerProfile(nick) {
+        const rankings = await loadRankingsFromServer();
+        const player = rankings.find(p => p.nick === nick);
+
+        if (player) {
+            const games = player.games || 0;
+            const victories = player.victories || 0;
+            const winRate = games > 0 ? ((victories / games) * 100).toFixed(1) : '0.0';
+
+            return {
+                nick: player.nick,
+                wins: victories,
+                losses: games - victories,
+                points: player.points || 0,
+                gamesPlayed: games,
+                winRate: winRate
+            };
         }
-        return false;
-    }
 
-    /**
-     * Obtém usuário atual
-     */
-    function getCurrentUser() {
-        return localStorage.getItem(CURRENT_USER_KEY) || null;
-    }
-
-    /**
-     * Remove usuário atual (logout)
-     */
-    function clearCurrentUser() {
-        localStorage. removeItem(CURRENT_USER_KEY);
+        return null;
     }
 
     /**
      * Verifica se usuário está logado
      */
     function isUserLoggedIn() {
-        return getCurrentUser() !== null;
+        return window.loginManager && window.loginManager.nick !== null;
     }
 
     /**
-     * Reseta todos os rankings (use com cuidado!)
+     * Obtém usuário atual
      */
-    function resetAllRankings() {
-        if (confirm('Tem certeza que deseja resetar TODOS os rankings?  Esta ação não pode ser desfeita! ')) {
-            localStorage.removeItem(STORAGE_KEY);
-            console.log('Rankings resetados');
-            return true;
-        }
-        return false;
+    function getCurrentUser() {
+        return window.loginManager ? window.loginManager.nick : null;
     }
+
+    // ==================================================
+    // SEGUNDA ENTREGA API OFICIAL
+    // Nota: recordGameResult não é mais necessário
+    // Os resultados são gerenciados pelo servidor
+    // ==================================================
 
     // Exporta API pública
     window.RankingSystem = {
-        loadRankings,
-        saveRankings,
-        getPlayerProfile,
-        recordGameResult,
+        loadRankingsFromServer,
+        updateRankingsDisplay,
         getTopRankings,
         getPlayerRank,
-        setCurrentUser,
-        getCurrentUser,
-        clearCurrentUser,
+        getPlayerProfile,
         isUserLoggedIn,
-        resetAllRankings
+        getCurrentUser
     };
 
-    console.log('Ranking System loaded successfully');
+    console.log('✅ SEGUNDA ENTREGA - Ranking System carregado (API Oficial)');
 })();
