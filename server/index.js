@@ -11,7 +11,7 @@ const gameAPI = require('./src/gameAPI');
 
 // ⚠️ IMPORTANTE: Ajuste a porta para 81XX onde XX = número do seu grupo
 const PORT = 8121; // Local development
-// const PORT = 8115; // Produção: 81XX onde XX = número do grupo
+// const PORT = 8121; // Produção: 81XX onde XX = número do grupo
 
 const PUBLIC_DIR = path.join(__dirname, '../public');
 
