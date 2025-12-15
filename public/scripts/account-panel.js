@@ -1,8 +1,4 @@
-// ==================================================
-// SEGUNDA ENTREGA API OFICIAL
-// account-panel.js - Controle do painel de conta
-// Adaptado para trabalhar com LoginManager que usa API oficial
-// ==================================================
+
 
 (function () {
     'use strict';

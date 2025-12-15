@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // CORREÇÃO PROBLEMA 3: Permitir relançar se dado é repetível (1, 4, 6) E não há jogadas
+
         if (window.gameLogic.gameState.diceValue > 0 && !window.gameLogic.gameState.diceUsed) {
             const isRepeatable = window.gameLogic.gameState.diceValue === 1 || 
                                 window.gameLogic.gameState.diceValue === 4 || 

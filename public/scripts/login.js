@@ -1,9 +1,3 @@
-// ==================================================
-// SEGUNDA ENTREGA API OFICIAL
-// login.js - LoginManager para autenticação com servidor oficial
-// Base URL: http://twserver.alunos.dcc.fc.up.pt:8008
-// SSE /update corrigido para GET
-// ==================================================
 
 class LoginManager {
     constructor() {

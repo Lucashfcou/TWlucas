@@ -1,16 +1,7 @@
-// ==================================================
-// SEGUNDA ENTREGA API OFICIAL
-// rankingSystem.js - Sistema de rankings usando servidor oficial
-// Comunicação via POST /ranking
-// ==================================================
 
 (function() {
     'use strict';
 
-    // ==================================================
-    // SEGUNDA ENTREGA API OFICIAL
-    // Rankings agora vêm do servidor, não do localStorage
-    // ==================================================
 
     /**
      * Carrega rankings do servidor oficial
@@ -21,10 +12,7 @@
             return [];
         }
 
-        // ==================================================
-        // SEGUNDA ENTREGA API OFICIAL
-        // Chamada: POST /ranking
-        // ==================================================
+
         const result = await window.loginManager.getRanking();
 
         if (result.success) {
@@ -141,11 +129,6 @@
         return window.loginManager ? window.loginManager.nick : null;
     }
 
-    // ==================================================
-    // SEGUNDA ENTREGA API OFICIAL
-    // Nota: recordGameResult não é mais necessário
-    // Os resultados são gerenciados pelo servidor
-    // ==================================================
 
     // Exporta API pública
     window.RankingSystem = {

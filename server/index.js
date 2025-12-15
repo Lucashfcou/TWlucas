@@ -7,7 +7,7 @@ const url = require('url');
 const dataManager = require('./src/dataManager');
 const gameAPI = require('./src/gameAPI');
 
-const PORT = 8138;
+const PORT = 8100;
 const PUBLIC_DIR = path.join(__dirname, '../public');
 
 // Tipos MIME
@@ -23,6 +23,8 @@ const MIME_TYPES = {
     '.svg': 'image/svg+xml',
     '.ico': 'image/x-icon'
 };
+
+
 
 // Servir arquivos estáticos
 function serveStaticFile(filePath, res) {
@@ -221,10 +223,15 @@ const server = http.createServer((req, res) => {
     const parsedUrl = url.parse(req.url);
     const pathname = parsedUrl.pathname;
     
-    // Rotas de API
-    if (pathname.startsWith('/api/')) {
-        handleAPIRequest(req, res, pathname);
-    }
+   if (
+       pathname.startsWith('/api/') ||
+       pathname === '/update' ||
+       pathname === '/register' ||
+       pathname === '/ranking'
+   ) {
+       handleAPIRequest(req, res, pathname);
+   }
+
     // Arquivos estáticos
     else {
         let filePath = path.join(PUBLIC_DIR, pathname === '/' ? 'index.html' : pathname);

@@ -1,8 +1,3 @@
-// ==================================================
-// SEGUNDA ENTREGA API OFICIAL
-// togglesLeftBarScript.js - Sistema de controle do painel lateral
-// Adaptado para carregar rankings do servidor oficial
-// ==================================================
 
 (function () {
     const leftBar = document.getElementById('left-bar');
@@ -39,10 +34,7 @@
             classToggle.setAttribute('aria-expanded', 'true');
             rulesToggle.setAttribute('aria-expanded', 'false');
 
-            // ==================================================
-            // SEGUNDA ENTREGA API OFICIAL
-            // Atualiza rankings do servidor ao abrir
-            // ==================================================
+
             updateRankingsDisplay();
 
             const focusTarget = classContent.querySelector('h2, h3, a, input');
@@ -60,10 +52,7 @@
         else openPanel(type);
     }
 
-    // ==================================================
-    // SEGUNDA ENTREGA API OFICIAL
-    // Atualiza exibição de rankings do servidor
-    // ==================================================
+
     async function updateRankingsDisplay() {
         if (!window.RankingSystem) {
             console.warn('Ranking System not loaded');

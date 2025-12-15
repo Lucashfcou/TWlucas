@@ -1,8 +1,3 @@
-// ==================================================
-// SEGUNDA ENTREGA API OFICIAL
-// onlineGameIntegration.js - Integração do modo online com servidor oficial
-// Comunicação EXCLUSIVA via endpoints oficiais
-// ==================================================
 
 // Estado do jogo online
 let onlineGameState = {
@@ -13,10 +8,7 @@ let onlineGameState = {
     lastUpdate: null
 };
 
-// ==================================================
-// SEGUNDA ENTREGA API OFICIAL
-// Função principal para iniciar jogo online
-// ==================================================
+
 window.startOnlineGame = async function(boardSize = 7) {
     if (!window.loginManager || !window.loginManager.nick) {
         alert('Faça login primeiro!');
@@ -32,10 +24,7 @@ window.startOnlineGame = async function(boardSize = 7) {
         playBtn.style.opacity = '0.5';
     }
 
-    // ==================================================
-    // SEGUNDA ENTREGA API OFICIAL
-    // Chamada: POST /join
-    // ==================================================
+
     const result = await window.loginManager.joinGame(boardSize);
 
     if (!result.success) {
@@ -81,10 +70,7 @@ window.startOnlineGame = async function(boardSize = 7) {
     }
 };
 
-// ==================================================
-// SEGUNDA ENTREGA API OFICIAL
-// Criar tabuleiro online
-// ==================================================
+
 function initOnlineBoard(boardSize) {
     const board = document.getElementById('game-board');
     board.innerHTML = '';
@@ -171,10 +157,7 @@ function setupOnlineHandlers() {
                 return;
             }
 
-            // ==================================================
-            // SEGUNDA ENTREGA API OFICIAL
-            // Chamada: POST /pass
-            // ==================================================
+
             const result = await window.loginManager.doPass();
 
             if (result.success) {
@@ -222,10 +205,7 @@ function setupOnlineHandlers() {
 
             const cellIndex = parseInt(cell.dataset.index);
 
-            // ==================================================
-            // SEGUNDA ENTREGA API OFICIAL
-            // Chamada: POST /notify com índice da célula
-            // ==================================================
+
             const result = await window.loginManager.doNotify(cellIndex);
 
             if (result.success) {
@@ -237,11 +217,7 @@ function setupOnlineHandlers() {
     });
 }
 
-// ==================================================
-// SEGUNDA ENTREGA API OFICIAL
-// Callback de atualização do servidor (via polling)
-// Formato da resposta: ver documentação oficial
-// ==================================================
+
 window.onGameUpdate = function(serverState) {
     if (!onlineGameState.isOnline) return;
 
@@ -391,10 +367,7 @@ function updateBoardFromServer(pieces) {
     }
 }
 
-// ==================================================
-// SEGUNDA ENTREGA API OFICIAL
-// Destacar peças selecionáveis (minhas peças no meu turno)
-// ==================================================
+
 function highlightSelectablePieces() {
     const cells = document.querySelectorAll('.cell');
 
